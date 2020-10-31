@@ -1,0 +1,41 @@
+<launch>
+
+  <arg name="rviz" default="true" />
+
+  <param name="lidar_type" type="int" value="1"/>
+	<param name="blind" type="double" value="0.5"/>
+	<param name="inf_bound" type="double" value="10"/>
+	<param name="N_SCANS" type="int" value="6"/>
+	<param name="group_size" type="int" value="8"/>
+	<param name="disA" type="double" value="0.01"/>
+	<param name="disB" type="double" value="0.1"/>
+	<param name="p2l_ratio" type="double" value="225"/>
+	<param name="limit_maxmid" type="double" value="6.25"/>
+	<param name="limit_midmin" type="double" value="6.25"/>
+	<param name="limit_maxmin" type="double" value="3.24"/>
+	<param name="jump_up_limit" type="double" value="170.0"/>
+	<param name="jump_down_limit" type="double" value="8.0"/>
+	<param name="cos160" type="double" value="160.0"/>
+	<param name="edgea" type="double" value="2"/>
+	<param name="edgeb" type="double" value="0.1"/>
+	<param name="smallp_intersect" type="double" value="172.5"/>
+	<param name="smallp_ratio" type="double" value="1.2"/>
+	<param name="point_filter_num" type="int" value="3"/>
+  <node pkg="fast_lio" type="loam_feat_extract" name="feature_extract" output="screen"/>
+
+  <node pkg="fast_lio" type="loam_laserMapping" name="laserMapping" output="screen">
+  <param name="map_file_path" type="string" value=" " />
+  <param name="max_iteration" type="int" value="10" />
+  <param name="dense_map_enable" type="bool" value="true" />
+  <param name="fov_degree" type="double" value="80" />
+  <param name="filter_size_corner" type="double" value="0.5" />
+  <param name="filter_size_surf" type="double" value="0.4" />
+  <param name="filter_size_map" type="double" value="0.5" />
+  <param name="cube_side_length" type="double" value="50" />
+  </node>
+
+  <group if="$(arg rviz)">
+    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find fast_lio)/rviz_cfg/loam_livox.rviz" />
+  </group>
+
+</launch>
