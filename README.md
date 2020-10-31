@@ -10,7 +10,7 @@ To know more about the details, please refer to our related paper:)
 
 **Our related paper**: our related papers are now available on arxiv:
 
-[FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter](https://arxiv.org/abs/2010.05957)
+[FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter](https://arxiv.org/abs/2010.08196)
 
 **Our related video**: Commming soon.
 
