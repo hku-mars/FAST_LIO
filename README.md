@@ -46,11 +46,8 @@ Clone the repository and catkin_make:
     catkin_make
     source devel/setup.bash
 ```
-
-*Remarks:*
-- If you want to save the pcd file please add map_file_path in launch file.
 ## 3. Directly run
-### 3.1 For indoor environments and high LiDAR sample rate (20-100hz)
+### 3.1 For indoor environments and high frame-rate (such as 100hz)
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
     ....
@@ -58,6 +55,8 @@ Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installat
     roslaunch livox_ros_driver livox_lidar_msg.launch
     
 ```
+*Remarks:*
+- If you want to change the frame rate, please modify the **publish_freq** parameter in the [livox_lidar_msg.launch](https://github.com/Livox-SDK/livox_ros_driver/blob/master/livox_ros_driver/launch/livox_lidar_msg.launch) of [Livox-ros-driver](https://github.com/Livox-SDK/livox_ros_driver) before make the livox_ros_driver pakage.
 
 ### 3.2 For outdoor environments
 Connect to your PC to Livox Avia LiDAR following [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
@@ -90,7 +89,7 @@ roslaunch fast_lio mapping_avia_outdoor.launch
 rosbag play YOUR_DOWNLOADED.bag
 ```
 
-### 4.3 High-rate rosbag (Livox Avia LiDAR sampled at 100Hz)
+### 4.3 High-rate rosbag (Livox Avia LiDAR with 100Hz frame-rate)
 
 Download [high_rate_avia](https://drive.google.com/file/d/1UM6O3PRN3b730ZeuvKKT3yuOLNQuz8Yf/view?usp=sharing) and then
 ```
