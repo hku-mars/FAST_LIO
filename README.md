@@ -76,8 +76,14 @@ Download [avia_indoor_quick_shake_example1](https://drive.google.com/file/d/1SWm
 roslaunch fast_lio mapping_avia.launch
 rosbag play YOUR_DOWNLOADED.bag
 ```
+### 4.2 High-rate rosbag (Livox Avia LiDAR with 100Hz frame-rate)
 
-### 4.2 Outdoor rosbag (Livox Avia LiDAR)
+Download [high_rate_avia](https://drive.google.com/file/d/1UM6O3PRN3b730ZeuvKKT3yuOLNQuz8Yf/view?usp=sharing) and then
+```
+roslaunch fast_lio mapping_avia.launch
+rosbag play YOUR_DOWNLOADED.bag
+```
+### 4.3 Outdoor rosbag (Livox Avia LiDAR)
 
 <div align="center"><img src="doc/results/HKU_MB_002.png" width=100% /></div>
 
@@ -86,14 +92,6 @@ rosbag play YOUR_DOWNLOADED.bag
 Download [avia_hku_main building_mapping](https://drive.google.com/file/d/1GSb9eLQuwqmgI3VWSB5ApEUhOCFG_Sv5/view?usp=sharing) and then
 ```
 roslaunch fast_lio mapping_avia_outdoor.launch
-rosbag play YOUR_DOWNLOADED.bag
-```
-
-### 4.3 High-rate rosbag (Livox Avia LiDAR with 100Hz frame-rate)
-
-Download [high_rate_avia](https://drive.google.com/file/d/1UM6O3PRN3b730ZeuvKKT3yuOLNQuz8Yf/view?usp=sharing) and then
-```
-roslaunch fast_lio mapping_avia.launch
 rosbag play YOUR_DOWNLOADED.bag
 ```
 
