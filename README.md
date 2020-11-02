@@ -98,7 +98,10 @@ rosbag play YOUR_DOWNLOADED.bag
 ## 5.Implementation on UAV
 In order to validate the robustness and computational efficiency of FAST-LIO in actual mobile robots, we build a small-scale quadrotor which can carry a Livox Avia LiDAR with 70 degree FoV and a DJI Manifold 2-C onboard computer with a 1.8 GHz Intel i7-8550U CPU and 8 G RAM, as shown in below.
 
-<div align="center"><img src="doc/uav_ground.pdf" width=100% /></div>
+<div align="center">
+    <img src="doc/uav01.jpg" width=40.5% >
+    <img src="doc/uav_system.png" width=57% >
+</div>
 
 ## 6.Acknowledgments
 Thanks for LOAM(J. Zhang and S. Singh. LOAM: Lidar Odometry and Mapping in Real-time), [Livox_Mapping](https://github.com/Livox-SDK/livox_mapping) and [Loam_Livox](https://github.com/hku-mars/loam_livox).
