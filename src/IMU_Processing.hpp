@@ -26,7 +26,7 @@
 
 /// *************Preconfiguration
 
-#define MAX_INI_COUNT (50)
+#define MAX_INI_COUNT (200)
 
 const bool time_list(PointType &x, PointType &y) {return (x.curvature < y.curvature);};
 
@@ -216,7 +216,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, StatesGroup &state_inout
 
     #ifdef DEBUG_PRINT
     // fout<<head->header.stamp.toSec()<<" "<<angvel_avr.transpose()<<" "<<acc_avr.transpose()<<std::endl;
-    #endif
+    #endif  
     dt = tail->header.stamp.toSec() - head->header.stamp.toSec();
     
     /* covariance propagation */
@@ -224,7 +224,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, StatesGroup &state_inout
     Eigen::Matrix3d Exp_f   = Exp(angvel_avr, dt);
     acc_avr_skew<<SKEW_SYM_MATRX(angvel_avr);
 
-    F_x.block<3,3>(0,0)  = - Exp_f;
+    F_x.block<3,3>(0,0)  = Exp(angvel_avr, - dt);
     F_x.block<3,3>(0,9)  = - Eye3d * dt;
     // F_x.block<3,3>(3,0)  = R_imu * off_vel_skew * dt;
     F_x.block<3,3>(3,6)  = Eye3d * dt;
@@ -290,7 +290,6 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, StatesGroup &state_inout
     pos_imu<<VEC_FROM_ARRAY(head->pos);
     angvel_avr<<VEC_FROM_ARRAY(head->gyr);
 
-    int i = 0;
     for(; it_pcl->curvature / double(1000) > head->offset_time; it_pcl --)
     {
       dt = it_pcl->curvature / double(1000) - head->offset_time;

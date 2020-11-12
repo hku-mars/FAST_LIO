@@ -82,6 +82,7 @@ int laserCloudValidInd[250];
 int laserCloudSurroundInd[250];
 int laserCloudValidNum    = 0;
 int laserCloudSurroundNum = 0;
+int laserCloudSelNum      = 0;
 
 const int laserCloudWidth  = 42;
 const int laserCloudHeight = 22;
@@ -425,7 +426,6 @@ void lasermap_fov_segment()
                     
                     if (isInLaserFOV)
                     {
-                        
                         laserCloudValidInd[laserCloudValidNum] = i + laserCloudWidth * j
                                 + laserCloudWidth * laserCloudHeight * k;
                         laserCloudValidNum ++;
@@ -533,14 +533,12 @@ int main(int argc, char** argv)
 
     ros::Subscriber sub_pcl = nh.subscribe("/laser_cloud_flat", 20000, feat_points_cbk);
     ros::Subscriber sub_imu = nh.subscribe("/livox/imu", 20000, imu_cbk);
-    // ros::Subscriber subLaserCloudSurfLast = nh.subscribe<sensor_msgs::PointCloud2>
-    //         ("/livox_undistort", 100, featsLastHandler);
     ros::Publisher pubLaserCloudFullRes = nh.advertise<sensor_msgs::PointCloud2>
             ("/cloud_registered", 100);
+    ros::Publisher pubLaserCloudEffect  = nh.advertise<sensor_msgs::PointCloud2>
+            ("/cloud_effected", 100);
     ros::Publisher pubLaserCloudMap = nh.advertise<sensor_msgs::PointCloud2>
             ("/Laser_map", 100);
-    // ros::Publisher pubSolvedPose6D = nh.advertise<fast_lio::States>
-    //         ("/States_updated", 100);
     ros::Publisher pubOdomAftMapped = nh.advertise<nav_msgs::Odometry> 
             ("/aft_mapped_to_init", 10);
 
@@ -711,7 +709,7 @@ int main(int argc, char** argv)
                         {
                             /** Find the closest surface/line in the map **/
                             kdtreeSurfFromMap->nearestKSearch(pointSel_tmpt, NUM_MATCH_POINTS, points_near, pointSearchSqDis_surf);
-                            if (pointSearchSqDis_surf[NUM_MATCH_POINTS - 1] < 3.0)
+                            if (pointSearchSqDis_surf[NUM_MATCH_POINTS - 1] < 3)
                             {
                                 point_selected_surf[i] = true;
                             }
@@ -773,13 +771,13 @@ int main(int argc, char** argv)
                             //if(fabs(pd2) > 0.1) continue;
                             float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel_tmpt.x * pointSel_tmpt.x + pointSel_tmpt.y * pointSel_tmpt.y + pointSel_tmpt.z * pointSel_tmpt.z));
 
-                            if (s > 0.1)
+                            if (s > 0.92)
                             {
                                 point_selected_surf[i] = true;
-                                coeffSel_tmpt->points[i].x = s * pa;
-                                coeffSel_tmpt->points[i].y = s * pb;
-                                coeffSel_tmpt->points[i].z = s * pc;
-                                coeffSel_tmpt->points[i].intensity = s * pd2;
+                                coeffSel_tmpt->points[i].x = pa;
+                                coeffSel_tmpt->points[i].y = pb;
+                                coeffSel_tmpt->points[i].z = pc;
+                                coeffSel_tmpt->points[i].intensity = pd2;
                             }
                             else
                             {
@@ -794,7 +792,7 @@ int main(int argc, char** argv)
                     for (int i = 0; i < coeffSel_tmpt->points.size(); i++)
                     {
                         float error_abs = std::abs(coeffSel_tmpt->points[i].intensity);
-                        if (point_selected_surf[i]  && (error_abs < 0.5))
+                        if (point_selected_surf[i])
                         {
                             laserCloudOri->push_back(feats_down->points[i]);
                             coeffSel->push_back(coeffSel_tmpt->points[i]);
@@ -802,7 +800,7 @@ int main(int argc, char** argv)
                         }
                     }
 
-                    int laserCloudSelNum = laserCloudOri->points.size();
+                    laserCloudSelNum = laserCloudOri->points.size();
                     double ave_residual = total_residual / laserCloudSelNum;
                     // ave_res_last 
 
@@ -886,14 +884,13 @@ int main(int argc, char** argv)
                     euler_cur = RotMtoEuler(state.rot_end);
 
                     #ifdef DEBUG_PRINT
-                    // std::cout<<"solution: "<<solution.transpose()<<std::endl;
                     std::cout<<"update: R"<<euler_cur.transpose()*57.3<<" p "<<state.pos_end.transpose()<<" v "<<state.vel_end.transpose()<<" bg"<<state.bias_g.transpose()<<" ba"<<state.bias_a.transpose()<<std::endl;
                     std::cout<<"dR & dT: "<<deltaR<<" "<<deltaT<<" res norm:"<<ave_residual<<std::endl;
                     #endif
 
                     /*** Rematch Judgement ***/
                     rematch_en = false;
-                    if ((deltaR < 0.07 && deltaT < 0.015))
+                    if ((deltaR < 0.01 && deltaT < 0.015) || ((rematch_num == 0) && (iterCount == (NUM_MAX_ITERATIONS - 2))))
                     {
                         rematch_en = true;
                         rematch_num ++;
@@ -907,7 +904,6 @@ int main(int argc, char** argv)
                             /*** Covariance Update ***/
                             G.block<DIM_OF_STATES,6>(0,0) = K * Hsub;
                             state.cov = (I_STATE - G) * state.cov;
-                            // std::cout<<"propagated cov: "<<state.cov.diagonal().transpose()<<std::endl;
                         }
                         solve_time += omp_get_wtime() - solve_start;
                         break;
@@ -951,15 +947,15 @@ int main(int argc, char** argv)
             }
             t3 = omp_get_wtime();
 
-            /******* Publish current frame points in world coordinates:  *******/            
+            /******* Publish current frame points in world coordinates:  *******/
             laserCloudFullRes2->clear();
             *laserCloudFullRes2 = dense_map_en ? (*feats_undistort) : (* feats_down);
-            // *laserCloudFullRes2 = dense_map_en ? (*laserCloudFullRes) : (* feats_down);
 
             int laserCloudFullResNum = laserCloudFullRes2->points.size();
-
+    
             pcl::PointXYZRGB temp_point;
             laserCloudFullResColor->clear();
+            {
             for (int i = 0; i < laserCloudFullResNum; i++)
             {
                 RGBpointBodyToWorld(&laserCloudFullRes2->points[i], &temp_point);
@@ -971,6 +967,23 @@ int main(int argc, char** argv)
             laserCloudFullRes3.header.stamp = ros::Time::now();//.fromSec(last_timestamp_lidar);
             laserCloudFullRes3.header.frame_id = "/camera_init";
             pubLaserCloudFullRes.publish(laserCloudFullRes3);
+            }
+
+            /******* Publish Effective points *******/
+            // {
+            // laserCloudFullResColor->clear();
+            // pcl::PointXYZRGB temp_point;
+            // for (int i = 0; i < laserCloudSelNum; i++)
+            // {
+            //     RGBpointBodyToWorld(&laserCloudOri->points[i], &temp_point);
+            //     laserCloudFullResColor->push_back(temp_point);
+            // }
+            // sensor_msgs::PointCloud2 laserCloudFullRes3;
+            // pcl::toROSMsg(*laserCloudFullResColor, laserCloudFullRes3);
+            // laserCloudFullRes3.header.stamp = ros::Time::now();//.fromSec(last_timestamp_lidar);
+            // laserCloudFullRes3.header.frame_id = "/camera_init";
+            // pubLaserCloudEffect.publish(laserCloudFullRes3);
+            // }
 
             /******* Publish Maps:  *******/
             // sensor_msgs::PointCloud2 laserCloudMap;
