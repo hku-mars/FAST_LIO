@@ -7,9 +7,9 @@
 
 **Developers**
 
-Wei Xu 徐威: Laser mapping and pose optimization;
+[Wei Xu 徐威](https://github.com/XW-HKU): Laser mapping and pose optimization;
 
-Zheng Liu 刘政: Features extraction.
+[Zheng Liu 刘政](https://github.com/Zale-Liu): Features extraction.
 
 To know more about the details, please refer to our related paper:)
 
