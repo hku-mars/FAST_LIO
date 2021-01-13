@@ -4,7 +4,12 @@
 2. Automaticaly initialized at most steady environments;
 3. Parallel KD-Tree Search to decrease the computation;
 4. Robust feature extraction;
-5. Surpports for different FOV.
+
+**Developers**
+
+Wei Xu 徐威: Laser mapping and pose optimization
+
+Zheng Liu 刘政: Features extraction
 
 To know more about the details, please refer to our related paper:)
 
