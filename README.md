@@ -12,7 +12,7 @@ To know more about the details, please refer to our related paper:)
 
 [FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter](https://arxiv.org/abs/2010.08196)
 
-**Our related video**: Commming soon.
+**Our related video**: https://youtu.be/iYCY6T79oNU
 
 <div align="center">
     <img src="doc/results/HKU_HW.png" width = 49% >
