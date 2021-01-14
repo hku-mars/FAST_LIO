@@ -1,7 +1,7 @@
 #ifndef COMMON_LIB_H
 #define COMMON_LIB_H
 
-#include <Exp_mat.h>
+#include <so3_math.h>
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -14,6 +14,7 @@
 
 
 // #define DEBUG_PRINT
+// #define USE_ikdtree
 
 #define PI_M (3.14159265358)
 #define G_m_s2 (9.8099)         // Gravaty const in GuangDong/China
@@ -21,13 +22,14 @@
 #define DIM_OF_PROC_N (12)      // Dimension of process noise (Let Dim(SO(3)) = 3)
 #define CUBE_LEN  (6.0)
 #define LIDAR_SP_LEN    (2)
-#define INIT_COV  (0.0001)
+#define INIT_COV   (0.0001)
 
 #define VEC_FROM_ARRAY(v)        v[0],v[1],v[2]
 #define MAT_FROM_ARRAY(v)        v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8]
 #define CONSTRAIN(v,min,max)     ((v>min)?((v<max)?v:max):min)
 #define ARRAY_FROM_EIGEN(mat)    mat.data(), mat.data() + mat.rows() * mat.cols()
 #define STD_VEC_FROM_EIGEN(mat)  std::vector<decltype(mat)::Scalar> (mat.data(), mat.data() + mat.rows() * mat.cols())
+
 
 #define DEBUG_FILE_DIR(name)  (std::string(std::string(ROOT_DIR) + "Log/"+ name))
 
@@ -65,15 +67,64 @@ struct StatesGroup
         this->cov     = Eigen::Matrix<double,DIM_OF_STATES,DIM_OF_STATES>::Identity() * INIT_COV;
 	};
 
+    StatesGroup(const StatesGroup& b) {
+		this->rot_end = b.rot_end;
+		this->pos_end = b.pos_end;
+        this->vel_end = b.vel_end;
+        this->bias_g  = b.bias_g;
+        this->bias_a  = b.bias_a;
+        this->gravity = b.gravity;
+        this->cov     = b.cov;
+	};
+
+    StatesGroup& operator=(const StatesGroup& b)
+	{
+        this->rot_end = b.rot_end;
+		this->pos_end = b.pos_end;
+        this->vel_end = b.vel_end;
+        this->bias_g  = b.bias_g;
+        this->bias_a  = b.bias_a;
+        this->gravity = b.gravity;
+        this->cov     = b.cov;
+        return *this;
+	};
+
+
+    StatesGroup operator+(const Eigen::Matrix<double, DIM_OF_STATES, 1> &state_add)
+	{
+        StatesGroup a;
+		a.rot_end = this->rot_end * Exp(state_add(0,0), state_add(1,0), state_add(2,0));
+		a.pos_end = this->pos_end + state_add.block<3,1>(3,0);
+        a.vel_end = this->vel_end + state_add.block<3,1>(6,0);
+        a.bias_g  = this->bias_g  + state_add.block<3,1>(9,0);
+        a.bias_a  = this->bias_a  + state_add.block<3,1>(12,0);
+        a.gravity = this->gravity + state_add.block<3,1>(15,0);
+        a.cov     = this->cov;
+		return a;
+	};
+
     StatesGroup& operator+=(const Eigen::Matrix<double, DIM_OF_STATES, 1> &state_add)
 	{
-		this->rot_end = this->rot_end * Exp(state_add(0,0), state_add(1,0), state_add(2,0));
+        this->rot_end = this->rot_end * Exp(state_add(0,0), state_add(1,0), state_add(2,0));
 		this->pos_end += state_add.block<3,1>(3,0);
         this->vel_end += state_add.block<3,1>(6,0);
         this->bias_g  += state_add.block<3,1>(9,0);
         this->bias_a  += state_add.block<3,1>(12,0);
         this->gravity += state_add.block<3,1>(15,0);
 		return *this;
+	};
+
+    Eigen::Matrix<double, DIM_OF_STATES, 1> operator-(const StatesGroup& b)
+	{
+        Eigen::Matrix<double, DIM_OF_STATES, 1> a;
+        Eigen::Matrix3d rotd(b.rot_end.transpose() * this->rot_end);
+        a.block<3,1>(0,0)  = Log(rotd);
+        a.block<3,1>(3,0)  = this->pos_end - b.pos_end;
+        a.block<3,1>(6,0)  = this->vel_end - b.vel_end;
+        a.block<3,1>(9,0)  = this->bias_g  - b.bias_g;
+        a.block<3,1>(12,0) = this->bias_a  - b.bias_a;
+        a.block<3,1>(15,0) = this->gravity - b.gravity;
+		return a;
 	};
 
 	Eigen::Matrix3d rot_end;      // the estimated attitude (rotation matrix) at the end lidar point
@@ -115,26 +166,6 @@ auto set_pose6d(const double t, const Eigen::Matrix<T, 3, 1> &a, const Eigen::Ma
     return std::move(rot_kp);
 }
 
-template<typename T>
-Eigen::Matrix<T, 3, 1> RotMtoEuler(const Eigen::Matrix<T, 3, 3> &rot)
-{
-    T sy = sqrt(rot(0,0)*rot(0,0) + rot(1,0)*rot(1,0));
-    bool singular = sy < 1e-6;
-    T x, y, z;
-    if(!singular)
-    {
-        x = atan2(rot(2, 1), rot(2, 2));
-        y = atan2(-rot(2, 0), sy);   
-        z = atan2(rot(1, 0), rot(0, 0));  
-    }
-    else
-    {    
-        x = atan2(-rot(1, 2), rot(1, 1));    
-        y = atan2(-rot(2, 0), sy);    
-        z = 0;
-    }
-    Eigen::Matrix<T, 3, 1> ang(x, y, z);
-    return ang;
-}
+
 
 #endif

@@ -6,7 +6,7 @@
 #include <fstream>
 #include <csignal>
 #include <ros/ros.h>
-#include <Exp_mat.h>
+#include <so3_math.h>
 #include <Eigen/Eigen>
 #include <common_lib.h>
 #include <pcl/common/io.h>

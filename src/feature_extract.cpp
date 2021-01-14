@@ -5,8 +5,12 @@
 
 // Feature will be updated in next version
 
-typedef pcl::PointXYZINormal PointType;
 using namespace std;
+
+#define IS_VALID(a)  ((abs(a)>1e8) ? true : false)
+
+typedef pcl::PointXYZINormal PointType;
+
 ros::Publisher pub_full, pub_surf, pub_corn;
 
 enum LID_TYPE{MID, HORIZON, VELO16, OUST64};
@@ -167,6 +171,7 @@ void horizon_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
   pcl::PointCloud<PointType> pl_full, pl_corn, pl_surf;
 
   uint plsize = msg->point_num;
+
   pl_corn.reserve(plsize); pl_surf.reserve(plsize);
   pl_full.resize(plsize);
 
@@ -175,18 +180,27 @@ void horizon_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
     pl_buff[i].reserve(plsize);
   }
   
-  for(uint i=0; i<plsize; i++)
+  for(uint i=1; i<plsize; i++)
   {
-    if(msg->points[i].line < N_SCANS)
+    if((msg->points[i].line < N_SCANS) && ((msg->points[i].tag & 0x30) == 0x10)
+        && (!IS_VALID(msg->points[i].x)) && (!IS_VALID(msg->points[i].y)) && (!IS_VALID(msg->points[i].z)))
     {
       pl_full[i].x = msg->points[i].x;
       pl_full[i].y = msg->points[i].y;
       pl_full[i].z = msg->points[i].z;
       pl_full[i].intensity = msg->points[i].reflectivity;
       pl_full[i].curvature = msg->points[i].offset_time / float(1000000); //use curvature as time of each laser points
-      pl_buff[msg->points[i].line].push_back(pl_full[i]);
+
+      if((std::abs(pl_full[i].x - pl_full[i-1].x) > 1e-7) 
+          || (std::abs(pl_full[i].y - pl_full[i-1].y) > 1e-7)
+          || (std::abs(pl_full[i].z - pl_full[i-1].z) > 1e-7))
+      {
+        pl_buff[msg->points[i].line].push_back(pl_full[i]);
+      }
     }
   }
+
+  if(pl_buff[0].size() <= 7) {return;}
 
   for(int j=0; j<N_SCANS; j++)
   {
@@ -197,11 +211,13 @@ void horizon_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
     plsize--;
     for(uint i=0; i<plsize; i++)
     {
+
       types[i].range = sqrt(pl[i].x*pl[i].x + pl[i].y*pl[i].y);
       vx = pl[i].x - pl[i+1].x;
       vy = pl[i].y - pl[i+1].y;
       vz = pl[i].z - pl[i+1].z;
       types[i].dista = vx*vx + vy*vy + vz*vz;
+      // std::cout<<vx<<" "<<vx<<" "<<vz<<" "<<std::endl;
     }
     // plsize++;
     types[plsize].range = sqrt(pl[plsize].x*pl[plsize].x + pl[plsize].y*pl[plsize].y);
@@ -400,9 +416,7 @@ void velo16_handler1(const sensor_msgs::PointCloud2::ConstPtr &msg)
   //   last_stat = orders[scanID];
   // }
 
-
   idx++;
-
 
   for(int j=0; j<N_SCANS; j++)
   {
@@ -496,12 +510,12 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
   }
 
   // Surf
-  plsize2 = plsize - group_size;
+  plsize2 = (plsize > group_size) ? (plsize - group_size) : 0;
 
   Eigen::Vector3d curr_direct(Eigen::Vector3d::Zero());
   Eigen::Vector3d last_direct(Eigen::Vector3d::Zero());
 
-  uint i_nex, i2;
+  uint i_nex = 0, i2;
   uint last_i = 0; uint last_i_nex = 0;
   int last_state = 0;
   int plane_type;
@@ -514,6 +528,7 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
     }
     // i_nex = i; 
     i2 = i;
+    // std::cout<<" i: "<<i<<" i_nex "<<i_nex<<"group_size: "<<group_size<<" plsize "<<plsize<<" plsize2 "<<plsize2<<std::endl;
     plane_type = plane_judge(pl, types, i, i_nex, curr_direct);
     
     if(plane_type == 1)
@@ -605,7 +620,7 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
 
   }
 
-  plsize2 = plsize - 3;
+  plsize2 = plsize > 3 ? plsize - 3 : 0;
   for(uint i=head+3; i<plsize2; i++)
   {
     if(types[i].range<blind || types[i].ftype>=Real_Plane)
@@ -777,20 +792,24 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
       
       if(j == uint(last_surface+point_filter_num-1))
       {
-        PointType ap;
         for(uint k=last_surface; k<=j; k++)
         {
-          ap.x += pl[k].x;
-          ap.y += pl[k].y;
-          ap.z += pl[k].z;
-          ap.curvature += pl[k].curvature;
+          PointType ap;
+          ap.x = pl[k].x;
+          ap.y = pl[k].y;
+          ap.z = pl[k].z;
+          ap.curvature = pl[k].curvature;
+          ap.intensity = pl[k].intensity;
+          pl_surf.push_back(ap);
         }
-        ap.x /= point_filter_num;
-        ap.y /= point_filter_num;
-        ap.z /= point_filter_num;
-        ap.curvature /= point_filter_num;
-        pl_surf.push_back(ap);
-        // printf("%d-%d: %lf %lf %lf\n", last_surface, j, ap.x, ap.y, ap.z);
+
+        // PointType ap;
+        // ap.x = pl[last_surface].x;
+        // ap.y = pl[last_surface].y;
+        // ap.z = pl[last_surface].z;
+        // ap.curvature += pl[last_surface].curvature;
+        // pl_surf.push_back(ap);
+
         last_surface = -1;
       }
     }
@@ -819,7 +838,6 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
       last_surface = -1;
     }
   }
-
 }
 
 void pub_func(pcl::PointCloud<PointType> &pl, ros::Publisher pub, const ros::Time &ct)
@@ -854,6 +872,8 @@ int plane_judge(const pcl::PointCloud<PointType> &pl, vector<orgtype> &types, ui
   
   for(;;)
   {
+    if((i_cur >= pl.size()) || (i_nex >= pl.size())) break;
+
     if(types[i_nex].range < blind)
     {
       curr_direct.setZero();
@@ -875,6 +895,7 @@ int plane_judge(const pcl::PointCloud<PointType> &pl, vector<orgtype> &types, ui
   double v1[3], v2[3];
   for(uint j=i_cur+1; j<i_nex; j++)
   {
+    if((j >= pl.size()) || (i_cur >= pl.size())) break;
     v1[0] = pl[j].x - pl[i_cur].x;
     v1[1] = pl[j].y - pl[i_cur].y;
     v1[2] = pl[j].z - pl[i_cur].z;
