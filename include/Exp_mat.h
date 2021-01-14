@@ -3,7 +3,7 @@
 
 #include <math.h>
 #include <Eigen/Core>
-#include <opencv/cv.h>
+#include <opencv2/core.hpp>
 // #include <common_lib.h>
 
 #define SKEW_SYM_MATRX(v) 0.0,-v[2],v[1],v[2],0.0,-v[0],-v[1],v[0],0.0
