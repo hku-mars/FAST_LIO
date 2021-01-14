@@ -43,7 +43,7 @@
 #include <Exp_mat.h>
 #include <ros/ros.h>
 #include <Eigen/Core>
-#include <opencv/cv.h>
+#include <opencv2/core.hpp>
 #include <common_lib.h>
 #include "IMU_Processing.hpp"
 #include <nav_msgs/Odometry.h>
