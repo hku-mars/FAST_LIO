@@ -5,7 +5,7 @@
 3. Parallel KD-Tree Search to decrease the computation;
 4. Robust feature extraction;
 
-It should be noted current version of FAST-LIO does not support Velodyne LiDAR, we may support them in the future.
+It should be noted current version of FAST-LIO does not support Velodyne LiDAR, we may support them after March 2021.
 
 **Developers**
 
