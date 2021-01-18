@@ -52,7 +52,7 @@ Clone the repository and catkin_make:
     source devel/setup.bash
 ```
 ## 3. Directly run
-### 3.1 For indoor environments and high frame-rate (such as 100hz)
+### 3.1 For indoor environments and high frame-rate (maximum 100hz)
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
     ....
