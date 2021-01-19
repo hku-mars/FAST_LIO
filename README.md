@@ -4,7 +4,14 @@
 2. Automaticaly initialized at most steady environments;
 3. Parallel KD-Tree Search to decrease the computation;
 4. Robust feature extraction;
-5. Surpports for different FOV.
+
+It should be noted current version of FAST-LIO does not support Velodyne LiDAR, we may support them after March 2021.
+
+**Developers**
+
+[Wei Xu 徐威](https://github.com/XW-HKU): Laser mapping and pose optimization;
+
+[Zheng Liu 刘政](https://github.com/Zale-Liu): Features extraction.
 
 To know more about the details, please refer to our related paper:)
 
@@ -12,7 +19,7 @@ To know more about the details, please refer to our related paper:)
 
 [FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter](https://arxiv.org/abs/2010.08196)
 
-**Our related video**: Commming soon.
+**Our related video**: https://youtu.be/iYCY6T79oNU
 
 <div align="center">
     <img src="doc/results/HKU_HW.png" width = 49% >
@@ -46,8 +53,11 @@ Clone the repository and catkin_make:
     catkin_make
     source devel/setup.bash
 ```
+*Remarks:*
+- If you want to use a custom build of PCL, add the following line to ~/.bashrc
+```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
-### 3.1 For indoor environments and high frame-rate (such as 100hz)
+### 3.1 For indoor environments (support maximum 50hz frame rate)
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
     ....
@@ -76,14 +86,7 @@ Download [avia_indoor_quick_shake_example1](https://drive.google.com/file/d/1SWm
 roslaunch fast_lio mapping_avia.launch
 rosbag play YOUR_DOWNLOADED.bag
 ```
-### 4.2 High-rate rosbag (Livox Avia LiDAR with 100Hz frame-rate)
-
-Download [high_rate_avia](https://drive.google.com/file/d/1UM6O3PRN3b730ZeuvKKT3yuOLNQuz8Yf/view?usp=sharing) and then
-```
-roslaunch fast_lio mapping_avia.launch
-rosbag play YOUR_DOWNLOADED.bag
-```
-### 4.3 Outdoor rosbag (Livox Avia LiDAR)
+### 4.2 Outdoor rosbag (Livox Avia LiDAR)
 
 <div align="center"><img src="doc/results/HKU_MB_002.png" width=100% /></div>
 
