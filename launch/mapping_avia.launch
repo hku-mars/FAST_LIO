@@ -20,7 +20,7 @@
 	<param name="edgeb" type="double" value="0.1"/>
 	<param name="smallp_intersect" type="double" value="172.5"/>
 	<param name="smallp_ratio" type="double" value="1.2"/>
-	<param name="point_filter_num" type="int" value="1"/>
+	<param name="point_filter_num" type="int" value="3"/>
   <node pkg="fast_lio" type="loam_feat_extract" name="feature_extract" output="screen"/>
 
   <node pkg="fast_lio" type="loam_laserMapping" name="laserMapping" output="screen" required="true">

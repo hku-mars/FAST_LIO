@@ -1040,16 +1040,19 @@ int main(int argc, char** argv)
                         // state += solution;
 
                         auto vec = state_propagat - state;
-                        solution = K * (meas_vec - Hsub * vec.block<6,1>(0,0));
-                        state = state_propagat + solution;
+                        // solution = K * (meas_vec - Hsub * vec.block<6,1>(0,0));
+                        // state = state_propagat + solution;
+
+                        solution = K * meas_vec + vec - K * Hsub * vec.block<6,1>(0,0);
+                        state += solution;
 
                         rot_add = solution.block<3,1>(0,0);
                         t_add   = solution.block<3,1>(3,0);
 
                         flg_EKF_converged = false;
 
-                        if (((rot_add.norm() * 57.3 - deltaR) < 0.01) \
-                           && ((t_add.norm() * 100 - deltaT) < 0.015))
+                        if ((rot_add.norm() * 57.3 < 0.01) \
+                           && (t_add.norm() * 100 < 0.015))
                         {
                             flg_EKF_converged = true;
                         }
