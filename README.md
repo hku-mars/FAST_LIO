@@ -53,6 +53,9 @@ Clone the repository and catkin_make:
     catkin_make
     source devel/setup.bash
 ```
+*Remarks:*
+- If you want to use a custom build of PCL, add the following line to ~/.bashrc
+```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
 ### 3.1 For indoor environments (support maximum 50hz frame rate)
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
