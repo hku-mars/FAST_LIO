@@ -807,7 +807,7 @@ void give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &types, pcl::P
         ap.x = pl[j].x;
         ap.y = pl[j].y;
         ap.z = pl[j].z;
-        ap.curvature += pl[j].curvature;
+        ap.curvature = pl[j].curvature;
         pl_surf.push_back(ap);
 
         last_surface = -1;
