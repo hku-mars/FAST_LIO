@@ -1,4 +1,13 @@
 **Noted: Ubuntu 16.04 and lower is not supported**
+## FAST-LIO 2.0
+Will Launch around **March 2021**.
+
+New features:
+1. Faster and Better;
+2. Higher Frequency;
+3. More LiDAR support (Horizon and Ouster 64);
+4. Support ARM based embeded platforms.
+
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
 1. Fast iterated Kalman filter for odometry optimization;
