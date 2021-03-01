@@ -15,8 +15,6 @@ New features:
 3. Parallel KD-Tree Search to decrease the computation;
 4. Robust feature extraction;
 
-It should be noted current version of FAST-LIO does not support Ouster LiDAR, we may support it after March 2021.
-
 **Developers**
 
 [Wei Xu 徐威](https://github.com/XW-HKU): Laser mapping and pose optimization;
