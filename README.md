@@ -1,6 +1,6 @@
 **Noted: Ubuntu 16.04 and lower is not supported**
 ## FAST-LIO 2.0
-Will Launch at **End of March 2021**.
+Will Launch **Soon**.
 
 New features:
 1. Faster and Better;
