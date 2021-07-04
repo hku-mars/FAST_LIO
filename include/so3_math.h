@@ -3,10 +3,16 @@
 
 #include <math.h>
 #include <Eigen/Core>
-#include <opencv2/core.hpp>
-// #include <common_lib.h>
 
 #define SKEW_SYM_MATRX(v) 0.0,-v[2],v[1],v[2],0.0,-v[0],-v[1],v[0],0.0
+
+template<typename T>
+Eigen::Matrix<T, 3, 3> skew_sym_mat(const Eigen::Matrix<T, 3, 1> &v)
+{
+    Eigen::Matrix<T, 3, 3> skew_sym_mat;
+    skew_sym_mat<<0.0,-v[2],v[1],v[2],0.0,-v[0],-v[1],v[0],0.0;
+    return skew_sym_mat;
+}
 
 template<typename T>
 Eigen::Matrix<T, 3, 3> Exp(const Eigen::Matrix<T, 3, 1> &&ang)

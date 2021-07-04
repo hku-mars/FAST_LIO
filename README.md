@@ -1,38 +1,51 @@
 **Noted: Ubuntu 16.04 and lower is not supported**
-## FAST-LIO 2.0
-Will Launch **Soon**.
-
-New features:
-1. Faster and Better;
-2. Higher Frequency;
-3. More LiDAR support (Horizon and Ouster 64);
-4. Support ARM based embeded platforms.
 
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
 1. Fast iterated Kalman filter for odometry optimization;
 2. Automaticaly initialized at most steady environments;
 3. Parallel KD-Tree Search to decrease the computation;
-4. Robust feature extraction;
 
-**Developers**
+## FAST-LIO 2.0 (2021-07-04 Update)
+<!-- ![image](doc/real_experiment2.gif) -->
+<!-- [![Watch the video](doc/real_exp_2.png)](https://youtu.be/2OvjGnxszf8) -->
+<div align="left">
+<img src="doc/real_experiment2.gif" width=49% />
+<img src="doc/ulhkwh_fastlio.gif" width = 49% >
+</div>
 
-[Wei Xu 徐威](https://github.com/XW-HKU): Laser mapping and pose optimization;
+**Related video:**
 
-[Zheng Liu 刘政](https://github.com/Zale-Liu): Features extraction.
+[FAST-LIO2](https://youtu.be/2OvjGnxszf8)
+
+[FAST-LIO1](https://youtu.be/iYCY6T79oNU)
+
+**New features:**
+1. Incremental mapping using ikd-Tree, achieve faster speed and over 100Hz LiDAR rate.
+2. Direct odometry on Raw LiDAR points (feature extraction can be closed), achieving better accuracy.
+3. Since no need for feature extraction, FAST-LIO2 can support different LiDAR Types including spinning (Velodyne, Ouster) and solid-state (Avia, horizon) LiDARs. And most of LiDARs can be easily supported.
+4. Support external IMU.
+5. Support ARM-based platforms including Khadas VIM3, Nivida TX2, Raspberry 4B with 8G RAM.
+
+**Contributors**
+
+[Wei Xu 徐威](https://github.com/XW-HKU)，[Yixi Cai 蔡逸熙](https://github.com/Ecstasy-EC)，[Dongjiao He 贺东娇](https://github.com/Joanna-HE)，[Fangcheng Zhu 朱方程](https://github.com/zfc-zfc)，[Jiarong Lin 林家荣](https://github.com/ziv-lin)，[Zheng Liu 刘政](https://github.com/Zale-Liu)
 
 To know more about the details, please refer to our related paper:)
 
-**Our related paper**: our related papers are now available on arxiv:
+**Related papers**: 
+
+our related papers are now available on arxiv:
+
+[FAST-LIO2: Fast Direct LiDAR-inertial Odometry (Currently Uavailable)]()
 
 [FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter](https://arxiv.org/abs/2010.08196)
 
-**Our related video**: https://youtu.be/iYCY6T79oNU
 
-<div align="center">
+<!-- <div align="center">
     <img src="doc/results/HKU_HW.png" width = 49% >
     <img src="doc/results/HKU_MB_001.png" width = 49% >
-</div>
+</div> -->
 
 ## 1. Prerequisites
 ### 1.1 **Ubuntu** and **ROS**
@@ -45,11 +58,8 @@ PCL    >= 1.8,   Follow [PCL Installation](http://www.pointclouds.org/downloads/
 
 Eigen  >= 3.3.4, Follow [Eigen Installation](http://eigen.tuxfamily.org/index.php?title=Main_Page).
 
-OpenCV >= 3.2,   Follow [openCV Installation](https://opencv.org/releases/).
-
 ### 1.3. **livox_ros_driver**
 Follow [livox_ros_driver Installation](https://github.com/Livox-SDK/livox_ros_driver).
-
 
 ## 2. Build
 Clone the repository and catkin_make:
@@ -57,6 +67,7 @@ Clone the repository and catkin_make:
 ```
     cd ~/catkin_ws/src
     git clone https://github.com/XW-HKU/fast_lio.git
+    git submodule update --init
     cd ..
     catkin_make
     source devel/setup.bash
@@ -65,10 +76,11 @@ Clone the repository and catkin_make:
 - If you want to use a custom build of PCL, add the following line to ~/.bashrc
 ```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
-### 3.1 For indoor environments (support maximum 50hz frame rate)
+### 3.1 For Avia
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
     ....
+    cd ~/catkin_ws
     roslaunch fast_lio mapping_avia.launch
     roslaunch livox_ros_driver livox_lidar_msg.launch
     
@@ -76,14 +88,6 @@ Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installat
 *Remarks:*
 - If you want to change the frame rate, please modify the **publish_freq** parameter in the [livox_lidar_msg.launch](https://github.com/Livox-SDK/livox_ros_driver/blob/master/livox_ros_driver/launch/livox_lidar_msg.launch) of [Livox-ros-driver](https://github.com/Livox-SDK/livox_ros_driver) before make the livox_ros_driver pakage.
 
-### 3.2 For outdoor environments
-Connect to your PC to Livox Avia LiDAR following [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
-```
-    ....
-    roslaunch fast_lio mapping_avia_outdoor.launch
-    roslaunch livox_ros_driver livox_lidar_msg.launch
-    
-```
 ## 4. Rosbag Example
 ### 4.1 Indoor rosbag (Livox Avia LiDAR)
 

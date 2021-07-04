@@ -1,0 +1,20 @@
+common:
+    lid_topic:  "/os_cloud_node/points"
+    imu_topic:  "/os_cloud_node/imu"
+    
+preprocess:
+    lidar_type: 3                # Ouster2-64 LiDAR
+    scan_line: 64
+    blind: 1
+
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree:    180
+    det_range:     150.0
+    extrinsic_T: [ 0.0, 0.0, 0.0 ]
+    extrinsic_R: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
