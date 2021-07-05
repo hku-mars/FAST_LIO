@@ -2,12 +2,6 @@
 
   <arg name="rviz" default="true" />
 
-  <node pkg="fast_lio" type="loam_feat_extract" name="feature_extract" output="log" />
-  	<param name="lidar_type" type="int" value="1"/>
-  	<param name="feature_extract_enable" type="bool" value="0"/>
-	<param name="blind" type="double" value="1"/>
-	<param name="point_filter_num" type="int" value="3"/>
-
   <node pkg="fast_lio" type="fastlio_mapping" name="laserMapping" output="screen" required="true" launch-prefix="gdb -ex run --args">
 	<param name="imu_topic" type="string" value="/livox/imu" />
 	<param name="map_file_path" type="string" value=" " />
@@ -17,7 +11,7 @@
 	<param name="filter_size_corner" type="double" value="0.2" />
 	<param name="filter_size_surf" type="double" value="0.2" />
 	<param name="filter_size_map" type="double" value="0.5" />
-	<param name="runtime_pos_log" type="bool" value="1" />
+	<param name="runtime_pos_log_enable" type="bool" value="1" />
 	<param name="cube_side_length" type="double" value="2000" />
   </node>
 
