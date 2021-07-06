@@ -70,7 +70,7 @@ double kdtree_incremental_time = 0.0, kdtree_search_time = 0.0, kdtree_delete_ti
 double T1[MAXN], s_plot[MAXN], s_plot2[MAXN], s_plot3[MAXN], s_plot4[MAXN], s_plot5[MAXN], s_plot6[MAXN], s_plot7[MAXN], s_plot8[MAXN], s_plot9[MAXN], s_plot10[MAXN], s_plot11[MAXN];
 double match_time = 0, solve_time = 0, solve_const_H_time = 0;
 int    kdtree_size_st = 0, kdtree_size_end = 0, add_point_size = 0, kdtree_delete_counter = 0;
-bool   runtime_pos_log = false;
+bool   runtime_pos_log = false, pcd_save_en = false;
 /**************************/
 
 float res_last[100000] = {0.0};
@@ -420,6 +420,7 @@ void map_incremental()
 }
 
 PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
+int ind = 0;
 void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
 {
     PointCloudXYZI::Ptr laserCloudFullRes(dense_map_en ? feats_undistort : feats_down_body);
@@ -444,6 +445,19 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
         publish_count -= PUBFRAME_PERIOD;
         pcl_wait_pub->clear();
     }
+
+    /**************** save map ****************/
+    /* 1. make sure you have enough memories
+    /* 2. pcd save will largely influence the real-time performences **/
+    if (laserCloudWorld->size() > 0 && pcd_save_en)
+    {
+        string file_name = string("scans_"+to_string(ind)+".pcd");
+        string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
+        pcl::PCDWriter pcd_writer;
+        cout << "current scan saved to /PCD/" << file_name<<endl;
+        pcd_writer.writeBinary(all_points_dir, *laserCloudWorld);
+    }
+    ind ++;
 }
 
 void publish_effect_world(const ros::Publisher & pubLaserCloudEffect)
@@ -663,6 +677,7 @@ int main(int argc, char** argv)
     nh.param<int>("point_filter_num", p_pre->point_filter_num, 2);
     nh.param<bool>("feature_extract_enable", p_pre->feature_enabled, 0);
     nh.param<bool>("runtime_pos_log_enable", runtime_pos_log, 0);
+    nh.param<bool>("pcd_save_enable", pcd_save_en, 0);
     nh.param<vector<double>>("mapping/extrinsic_T", extrinT, vector<double>());
     nh.param<vector<double>>("mapping/extrinsic_R", extrinR, vector<double>());
     cout<<"p_pre->lidar_type "<<p_pre->lidar_type<<endl;
@@ -878,26 +893,14 @@ int main(int argc, char** argv)
                 dump_lio_state_to_log(fp);
             }
         }
+
         status = ros::ok();
         rate.sleep();
     }
-    /**************** save map ****************
-    string surf_filename(map_file_path + "/surf.pcd");
-    string corner_filename(map_file_path + "/corner.pcd");
-    string all_points_filename(map_file_path + "/all_points.pcd");
 
-    PointCloudXYZI surf_points, corner_points;
-    surf_points = *featsFromMap;
     fout_out.close();
     fout_pre.close();
-    if (surf_points.size() > 0 && corner_points.size() > 0) 
-    {
-    pcl::PCDWriter pcd_writer;
-    cout << "saving...";
-    pcd_writer.writeBinary(surf_filename, surf_points);
-    pcd_writer.writeBinary(corner_filename, corner_points);
-    }
-    *******************************************/
+
     if (runtime_pos_log)
     {
         vector<double> t, s_vec, s_vec2, s_vec3, s_vec4, s_vec5, s_vec6, s_vec7;    
