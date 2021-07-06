@@ -5,7 +5,7 @@ common:
 preprocess:
     lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
     scan_line: 6
-    blind: 1
+    blind: 4
 
 mapping:
     acc_cov: 0.1

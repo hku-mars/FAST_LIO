@@ -763,7 +763,7 @@ int main(int argc, char** argv)
             {
                 first_lidar_time = Measures.lidar_beg_time;
                 p_imu->first_lidar_time = first_lidar_time;
-                cout<<"FAST-LIO not ready"<<endl;
+                // cout<<"FAST-LIO not ready"<<endl;
                 continue;
             }
 

@@ -86,7 +86,7 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 202
+          Max Intensity: 255
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: surround
@@ -212,7 +212,7 @@ Visualization Manager:
       Buffer Length: 2
       Class: rviz/Path
       Color: 25; 255; 255
-      Enabled: true
+      Enabled: false
       Head Diameter: 0
       Head Length: 0
       Length: 0.30000001192092896
@@ -230,7 +230,7 @@ Visualization Manager:
       Shaft Length: 0.4000000059604645
       Topic: /path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -327,25 +327,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 207.86837768554688
+      Distance: 122.74785614013672
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -66.09013366699219
-        Y: 46.88283920288086
-        Z: 3.041166019102093e-5
+        X: 17.150386810302734
+        Y: 1.2471342086791992
+        Z: 3.980784458690323e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8397973775863647
+      Pitch: 1.189797043800354
       Target Frame: camera_init
       Value: ThirdPersonFollower (rviz)
-      Yaw: 1.4935526847839355
+      Yaw: 3.293565511703491
     Saved: ~
 Window Geometry:
   Displays:
