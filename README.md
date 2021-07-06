@@ -135,6 +135,10 @@ Step C: Run LiDAR's ros driver or play rosbag.
 *Remarks:*
 - We will produce some velodyne datasets which is already transfered to Rosbags, please wait for a while.
 
+### 3.4 PCD file save
+
+Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```, every frame will be saved as an independent .PCD file in ``` FAST_LIO/PCD/ ``` directory.
+
 ## 4. Rosbag Example
 ### 4.1 Indoor rosbag (Livox Avia LiDAR)
 
