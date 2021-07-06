@@ -3,7 +3,7 @@ common:
     imu_topic:  "/imu/data"
     
 preprocess:
-    lidar_type: 2                # VLP-16 LiDAR
+    lidar_type: 2                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
     scan_line: 32
     blind: 4
 

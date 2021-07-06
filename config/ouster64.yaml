@@ -3,7 +3,7 @@ common:
     imu_topic:  "/os_cloud_node/imu"
     
 preprocess:
-    lidar_type: 3                # Ouster2-64 LiDAR
+    lidar_type: 3                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
     scan_line: 64
     blind: 1
 

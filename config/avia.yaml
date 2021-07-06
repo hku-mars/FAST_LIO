@@ -3,7 +3,7 @@ common:
     imu_topic:  "/livox/imu"
 
 preprocess:
-    lidar_type: 1                # Livox Avia LiDAR
+    lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
     scan_line: 6
     blind: 1
 

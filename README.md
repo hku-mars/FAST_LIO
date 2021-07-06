@@ -1,11 +1,10 @@
-**Noted: Ubuntu 16.04 and lower is not supported**
-
 ## Related Works
 
 1. [ikd-Tree](https://github.com/hku-mars/ikd-Tree): A state-of-art dynamic KD-Tree for 3D kNN search.
 2. [IKFOM](https://github.com/hku-mars/IKFoM): A Toolbox for fast and high-precision on-manifold Kalman filter.
 3. [UAV Avoiding Dynamic Obstacles](https://github.com/hku-mars/dyn_small_obs_avoidance): One of the implementation of FAST-LIO in robot's planning.
-4. [R2LIVE](https://github.com/hku-mars/dyn_small_obs_avoidance): A high-precision LiDAR-inertial-Vision fusion work using FAST-LIO as LiDAR-inertial front-end.
+4. [R2LIVE](https://github.com/hku-mars/r2live): A high-precision LiDAR-inertial-Vision fusion work using FAST-LIO as LiDAR-inertial front-end.
+5. [UGV Demo](https://www.youtube.com/watch?v=wikgrQbE6Cs): Model Predictive Control for Trajectory Tracking on Differentiable Manifolds.
 
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
@@ -52,7 +51,7 @@
 
 ## 1. Prerequisites
 ### 1.1 **Ubuntu** and **ROS**
-**Ubuntu >= 18.04 (Ubuntu 16.04 is not supported)**
+**Ubuntu >= 16.04**
 
 For **Ubuntu 18.04 or higher**, the **default** PCL and Eigen is enough for FAST-LIO to work normally.
 
@@ -87,6 +86,8 @@ Clone the repository and catkin_make:
 - If you want to use a custom build of PCL, add the following line to ~/.bashrc
 ```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
+
+Please make sure the IMU and LiDAR are **Synchronized**, that's important.
 ### 3.1 For Avia
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
@@ -97,14 +98,26 @@ Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installat
 ```
 - If you want to change the frame rate, please modify the **publish_freq** parameter in the [livox_lidar_msg.launch](https://github.com/Livox-SDK/livox_ros_driver/blob/master/livox_ros_driver/launch/livox_lidar_msg.launch) of [Livox-ros-driver](https://github.com/Livox-SDK/livox_ros_driver) before make the livox_ros_driver pakage.
 
-### 3.2 For Velodyne or Ouster (using Velodyne as an example)
+### 3.2 For Livox serials with external IMU
 
-Step A: Setup before run
+mapping_avia.launch theratically supports mid-70, mid-40 or other livox serial lidar, but need to setup some parameters befor run:
 
-Edit ``` FAST-LIO/config/velodyne.yaml ``` to set the below parameters:
+Edit ``` config/avia.yaml ``` to set the below parameters:
 
 1. lidar point cloud topic name: ``` lid_topic ```
 2. IMU topic name: ``` imu_topic ```
+3. Translational extrinsic: ``` extrinsic_T ```
+4. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
+- The extrinsic parameters in FAST-LIO is defined as the LiDAR's pose (position and rotation matrix) in IMU body frame (i.e. the IMU is the base frame). They can be found in the official manual.
+
+### 3.3 For Velodyne or Ouster (Velodyne as an example)
+
+Step A: Setup before run
+
+Edit ``` config/velodyne.yaml ``` to set the below parameters:
+
+1. lidar point cloud topic name: ``` lid_topic ```
+2. IMU topic name: ``` imu_topic ``` (both internal and external, 6-aixes or 9-axies are fine)
 3. Line number (we tested 16 and 32 line, but not tested 64 or above): ``` scan_line ```
 4. Translational extrinsic: ``` extrinsic_T ```
 5. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
@@ -118,6 +131,7 @@ Step B: Run below
 ```
 
 Step C: Run LiDAR's ros driver or play rosbag.
+
 *Remarks:*
 - We will produce some velodyne datasets which is already transfered to Rosbags, please wait for a while.
 
