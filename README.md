@@ -101,11 +101,11 @@ Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installat
 
 ### 3.2 For Livox serials with external IMU
 
-mapping_avia.launch theratically supports mid-70, mid-40 or other livox serial lidar, but need to setup some parameters befor run:
+mapping_avia.launch theratically supports mid-70, mid-40 or other livox serial LiDAR, but need to setup some parameters befor run:
 
 Edit ``` config/avia.yaml ``` to set the below parameters:
 
-1. lidar point cloud topic name: ``` lid_topic ```
+1. LiDAR point cloud topic name: ``` lid_topic ```
 2. IMU topic name: ``` imu_topic ```
 3. Translational extrinsic: ``` extrinsic_T ```
 4. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
@@ -117,7 +117,7 @@ Step A: Setup before run
 
 Edit ``` config/velodyne.yaml ``` to set the below parameters:
 
-1. lidar point cloud topic name: ``` lid_topic ```
+1. LiDAR point cloud topic name: ``` lid_topic ```
 2. IMU topic name: ``` imu_topic ``` (both internal and external, 6-aixes or 9-axies are fine)
 3. Line number (we tested 16 and 32 line, but not tested 64 or above): ``` scan_line ```
 4. Translational extrinsic: ``` extrinsic_T ```
@@ -138,7 +138,7 @@ Step C: Run LiDAR's ros driver or play rosbag.
 
 ### 3.4 PCD file save
 
-Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```, every frame will be saved as an independent .PCD file in ``` FAST_LIO/PCD/ ``` directory.
+Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated.
 
 ## 4. Rosbag Example
 ### 4.1 Indoor rosbag (Livox Avia LiDAR)

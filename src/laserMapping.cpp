@@ -420,7 +420,7 @@ void map_incremental()
 }
 
 PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
-int ind = 0;
+PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
 {
     PointCloudXYZI::Ptr laserCloudFullRes(dense_map_en ? feats_undistort : feats_down_body);
@@ -434,16 +434,16 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
                             &laserCloudWorld->points[i]);
     }
 
-    *pcl_wait_pub += *laserCloudWorld;
+    // *pcl_wait_pub += *laserCloudWorld;
     if(1)
     {
         sensor_msgs::PointCloud2 laserCloudmsg;
-        pcl::toROSMsg(*pcl_wait_pub, laserCloudmsg);
+        pcl::toROSMsg(*laserCloudWorld, laserCloudmsg);
         laserCloudmsg.header.stamp = ros::Time::now();
         laserCloudmsg.header.frame_id = "camera_init";
         pubLaserCloudFullRes.publish(laserCloudmsg);
         publish_count -= PUBFRAME_PERIOD;
-        pcl_wait_pub->clear();
+        // pcl_wait_pub->clear();
     }
 
     /**************** save map ****************/
@@ -451,13 +451,8 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
     /* 2. pcd save will largely influence the real-time performences **/
     if (laserCloudWorld->size() > 0 && pcd_save_en)
     {
-        string file_name = string("scans_"+to_string(ind)+".pcd");
-        string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
-        pcl::PCDWriter pcd_writer;
-        cout << "current scan saved to /PCD/" << file_name<<endl;
-        pcd_writer.writeBinary(all_points_dir, *laserCloudWorld);
+        *pcl_wait_save += *laserCloudWorld;
     }
-    ind ++;
 }
 
 void publish_effect_world(const ros::Publisher & pubLaserCloudEffect)
@@ -896,6 +891,18 @@ int main(int argc, char** argv)
 
         status = ros::ok();
         rate.sleep();
+    }
+
+    /**************** save map ****************/
+    /* 1. make sure you have enough memories
+    /* 2. pcd save will largely influence the real-time performences **/
+    if (pcl_wait_save->size() > 0 && pcd_save_en)
+    {
+        string file_name = string("scans.pcd");
+        string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
+        pcl::PCDWriter pcd_writer;
+        cout << "current scan saved to /PCD/" << file_name<<endl;
+        pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
     }
 
     fout_out.close();
