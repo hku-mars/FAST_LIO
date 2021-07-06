@@ -96,6 +96,7 @@ Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installat
     roslaunch fast_lio mapping_avia.launch
     roslaunch livox_ros_driver livox_lidar_msg.launch
 ```
+- For livox serials, FAST-LIO only support the data collected by the ``` livox_lidar_msg.launch ``` since only its ``` livox_ros_driver/CustomMsg ``` data structure produces the timestamp of each LiDAR point which is very important for the motion undistortion. ``` livox_lidar.launch ``` can not produce it right now.
 - If you want to change the frame rate, please modify the **publish_freq** parameter in the [livox_lidar_msg.launch](https://github.com/Livox-SDK/livox_ros_driver/blob/master/livox_ros_driver/launch/livox_lidar_msg.launch) of [Livox-ros-driver](https://github.com/Livox-SDK/livox_ros_driver) before make the livox_ros_driver pakage.
 
 ### 3.2 For Livox serials with external IMU
