@@ -5,7 +5,7 @@
 3. [UAV Avoiding Dynamic Obstacles](https://github.com/hku-mars/dyn_small_obs_avoidance): One of the implementation of FAST-LIO in robot's planning.
 4. [R2LIVE](https://github.com/hku-mars/r2live): A high-precision LiDAR-inertial-Vision fusion work using FAST-LIO as LiDAR-inertial front-end.
 5. [UGV Demo](https://www.youtube.com/watch?v=wikgrQbE6Cs): Model Predictive Control for Trajectory Tracking on Differentiable Manifolds.
-6. [SC-A-LOAM](https://github.com/gisbi-kim/SC-A-LOAM#for-livox-lidar): A scan-context loop closure module that can directly work with FAST-LIO1 (The support for FAST-LIO2 is under developing).
+6. [SC-A-LOAM](https://github.com/gisbi-kim/SC-A-LOAM#for-livox-lidar): A [Scan-Context](https://github.com/irapkaist/scancontext) loop closure module that can directly work with FAST-LIO1 (The support for FAST-LIO2 is under developing).
 
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
@@ -139,7 +139,17 @@ Step C: Run LiDAR's ros driver or play rosbag.
 
 ### 3.4 PCD file save
 
-Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated.
+Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated. ```pcl_viewer scans.pcd``` can visualize the point clouds.
+
+*Tips for pcl_viewer:*
+- change what to visualize/color by pressing keyboard 1,2,3,4,5 when pcl_viewer is running. 
+```
+    1 is all random
+    2 is X values
+    3 is Y values
+    4 is Z values
+    5 is intensity
+```
 
 ## 4. Rosbag Example
 ### 4.1 Indoor rosbag (Livox Avia LiDAR)

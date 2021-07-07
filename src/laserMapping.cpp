@@ -289,6 +289,7 @@ void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg)
     mtx_buffer.lock();
     scan_count ++;
     double preprocess_start_time = omp_get_wtime();
+    cout<<"lidar got at: "<<msg->header.stamp.toSec()<<endl;
     if (msg->header.stamp.toSec() < last_timestamp_lidar)
     {
         ROS_ERROR("lidar loop back, clear buffer");
@@ -307,6 +308,7 @@ void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg)
 void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) 
 {
     publish_count ++;
+    cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
 
     double timestamp = msg->header.stamp.toSec();
@@ -345,6 +347,11 @@ bool sync_packages(MeasureGroup &meas)
         meas.lidar_beg_time = time_buffer.front();
         lidar_end_time = meas.lidar_beg_time + meas.lidar->points.back().curvature / double(1000);
         lidar_pushed = true;
+    }
+
+    if (abs(last_timestamp_imu - lidar_end_time) > 10.0)
+    {
+        printf("IMU and LiDAR not Synced, IMU time: %lf, lidar scan end time: %lf",last_timestamp_imu, lidar_end_time);
     }
 
     if (last_timestamp_imu < lidar_end_time)
@@ -432,6 +439,7 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
     {
         RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
                             &laserCloudWorld->points[i]);
+        cout<<laserCloudWorld->points[i].intensity<<endl;
     }
 
     // *pcl_wait_pub += *laserCloudWorld;
