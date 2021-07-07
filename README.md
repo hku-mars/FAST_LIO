@@ -111,6 +111,7 @@ Edit ``` config/avia.yaml ``` to set the below parameters:
 3. Translational extrinsic: ``` extrinsic_T ```
 4. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
 - The extrinsic parameters in FAST-LIO is defined as the LiDAR's pose (position and rotation matrix) in IMU body frame (i.e. the IMU is the base frame). They can be found in the official manual.
+- FAST-LIO produces a very simple software time sync for livox LiDAR, set parameter ```time_sync_en``` to ture to turn on. But turn on **ONLY IF external time synchronization is really not possible**, since the software time sync cannot make sure accuracy.
 
 ### 3.3 For Velodyne or Ouster (Velodyne as an example)
 

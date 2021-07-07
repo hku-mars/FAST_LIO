@@ -1,6 +1,7 @@
 common:
     lid_topic:  "/livox/lidar"
     imu_topic:  "/livox/imu"
+    time_sync_en: false         # ONLY turn on when external time synchronization is really not possible
 
 preprocess:
     lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 

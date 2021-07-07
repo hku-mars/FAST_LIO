@@ -70,7 +70,7 @@ double kdtree_incremental_time = 0.0, kdtree_search_time = 0.0, kdtree_delete_ti
 double T1[MAXN], s_plot[MAXN], s_plot2[MAXN], s_plot3[MAXN], s_plot4[MAXN], s_plot5[MAXN], s_plot6[MAXN], s_plot7[MAXN], s_plot8[MAXN], s_plot9[MAXN], s_plot10[MAXN], s_plot11[MAXN];
 double match_time = 0, solve_time = 0, solve_const_H_time = 0;
 int    kdtree_size_st = 0, kdtree_size_end = 0, add_point_size = 0, kdtree_delete_counter = 0;
-bool   runtime_pos_log = false, pcd_save_en = false;
+bool   runtime_pos_log = false, pcd_save_en = false, time_sync_en = false;
 /**************************/
 
 float res_last[100000] = {0.0};
@@ -284,22 +284,37 @@ void standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
     sig_buffer.notify_all();
 }
 
+double timediff_lidar_wrt_imu = 0.0;
+bool   timediff_set_flg = false;
 void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg) 
 {
     mtx_buffer.lock();
-    scan_count ++;
     double preprocess_start_time = omp_get_wtime();
-    cout<<"lidar got at: "<<msg->header.stamp.toSec()<<endl;
+    scan_count ++;
     if (msg->header.stamp.toSec() < last_timestamp_lidar)
     {
         ROS_ERROR("lidar loop back, clear buffer");
         lidar_buffer.clear();
     }
+    last_timestamp_lidar = msg->header.stamp.toSec();
+    
+    if (!time_sync_en && abs(last_timestamp_imu - lidar_end_time) > 10.0)
+    {
+        printf("IMU and LiDAR not Synced, IMU time: %lf, lidar scan end time: %lf",last_timestamp_imu, lidar_end_time);
+    }
+
+    if (time_sync_en && !timediff_set_flg && abs(last_timestamp_lidar - last_timestamp_imu) > 1 && !imu_buffer.empty())
+    {
+        timediff_set_flg = true;
+        timediff_lidar_wrt_imu = last_timestamp_lidar + 0.1 - last_timestamp_imu;
+        printf("Self sync IMU and LiDAR, time diff is %.10lf \n", timediff_lidar_wrt_imu);
+    }
+
     PointCloudXYZI::Ptr  ptr(new PointCloudXYZI());
     p_pre->process(msg, ptr);
     lidar_buffer.push_back(ptr);
-    time_buffer.push_back(msg->header.stamp.toSec());
-    last_timestamp_lidar = msg->header.stamp.toSec();
+    time_buffer.push_back(last_timestamp_lidar);
+    
     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
     mtx_buffer.unlock();
     sig_buffer.notify_all();
@@ -308,8 +323,14 @@ void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg)
 void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) 
 {
     publish_count ++;
-    cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
+    // cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
+
+    if (abs(timediff_lidar_wrt_imu) > 0.1 && time_sync_en)
+    {
+        msg->header.stamp = \
+        ros::Time().fromSec(timediff_lidar_wrt_imu + msg_in->header.stamp.toSec());
+    }
 
     double timestamp = msg->header.stamp.toSec();
 
@@ -317,9 +338,8 @@ void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
 
     if (timestamp < last_timestamp_imu)
     {
-        ROS_ERROR("imu loop back, clear buffer");
+        ROS_WARN("imu loop back, clear buffer");
         imu_buffer.clear();
-        flg_reset = true;
     }
 
     last_timestamp_imu = timestamp;
@@ -347,11 +367,6 @@ bool sync_packages(MeasureGroup &meas)
         meas.lidar_beg_time = time_buffer.front();
         lidar_end_time = meas.lidar_beg_time + meas.lidar->points.back().curvature / double(1000);
         lidar_pushed = true;
-    }
-
-    if (abs(last_timestamp_imu - lidar_end_time) > 10.0)
-    {
-        printf("IMU and LiDAR not Synced, IMU time: %lf, lidar scan end time: %lf",last_timestamp_imu, lidar_end_time);
     }
 
     if (last_timestamp_imu < lidar_end_time)
@@ -439,7 +454,6 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
     {
         RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
                             &laserCloudWorld->points[i]);
-        cout<<laserCloudWorld->points[i].intensity<<endl;
     }
 
     // *pcl_wait_pub += *laserCloudWorld;
@@ -664,6 +678,7 @@ int main(int argc, char** argv)
     nh.param<string>("map_file_path",map_file_path,"");
     nh.param<string>("common/lid_topic",lid_topic,"/livox/lidar");
     nh.param<string>("common/imu_topic", imu_topic,"/livox/imu");
+    nh.param<bool>("common/time_sync_en", time_sync_en, false);
     nh.param<double>("filter_size_corner",filter_size_corner_min,0.5);
     nh.param<double>("filter_size_surf",filter_size_surf_min,0.5);
     nh.param<double>("filter_size_map",filter_size_map_min,0.5);
@@ -761,6 +776,7 @@ int main(int argc, char** argv)
                 ROS_WARN("reset when rosbag play back");
                 p_imu->Reset();
                 flg_reset = false;
+                Measures.imu.clear();
                 continue;
             }
 

@@ -1,6 +1,7 @@
 common:
     lid_topic:  "/os_cloud_node/points"
     imu_topic:  "/os_cloud_node/imu"
+    time_sync_en: false         # ONLY turn on when external time synchronization is really not possible
     
 preprocess:
     lidar_type: 3                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
