@@ -92,7 +92,7 @@ int    effct_feat_num = 0, time_log_counter = 0, scan_count = 0, publish_count =
 int    iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0, laserCloudValidNum = 0;
 bool   point_selected_surf[100000] = {0};
 bool   lidar_pushed, flg_reset, flg_exit = false, flg_EKF_inited;
-bool   dense_map_en = true;
+bool   scan_pub_en = false, dense_pub_en = false;
 
 vector<vector<int>>  pointSearchInd_surf; 
 vector<BoxPointType> cub_needrm;
@@ -445,7 +445,7 @@ PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
 PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
 {
-    PointCloudXYZI::Ptr laserCloudFullRes(dense_map_en ? feats_undistort : feats_down_body);
+    PointCloudXYZI::Ptr laserCloudFullRes(dense_pub_en ? feats_undistort : feats_down_body);
     int size = laserCloudFullRes->points.size();
     PointCloudXYZI::Ptr laserCloudWorld( \
                     new PointCloudXYZI(size, 1));
@@ -673,7 +673,8 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "laserMapping");
     ros::NodeHandle nh;
 
-    nh.param<bool>("dense_map_enable",dense_map_en,1);
+    nh.param<bool>("scan_publish_enable",scan_pub_en,1);
+    nh.param<bool>("dense_publish_enable",dense_pub_en,0);
     nh.param<int>("max_iteration",NUM_MAX_ITERATIONS,4);
     nh.param<string>("map_file_path",map_file_path,"");
     nh.param<string>("common/lid_topic",lid_topic,"/livox/lidar");
@@ -877,10 +878,11 @@ int main(int argc, char** argv)
             t5 = omp_get_wtime();
             
             /******* Publish points *******/
-            publish_frame_world(pubLaserCloudFullRes);
             publish_path(pubPath);
+            if(scan_pub_en) publish_frame_world(pubLaserCloudFullRes);
+            
             // publish_effect_world(pubLaserCloudEffect);
-            publish_map(pubLaserCloudMap);
+            // publish_map(pubLaserCloudMap);
 
             /*** Debug variables ***/
             if (runtime_pos_log)
