@@ -29,11 +29,11 @@
 </div>
 
 **New Features:**
-1. Incremental mapping using ikd-Tree, achieve faster speed and over 100Hz LiDAR rate.
-2. Direct odometry on Raw LiDAR points (feature extraction can be closed), achieving better accuracy.
+1. Incremental mapping using [ikd-Tree](https://github.com/hku-mars/ikd-Tree), achieve faster speed and over 100Hz LiDAR rate.
+2. Direct odometry (scan to map) on Raw LiDAR points (feature extraction can be closed), achieving better accuracy.
 3. Since no need for feature extraction, FAST-LIO2 can support different LiDAR Types including spinning (Velodyne, Ouster) and solid-state (Avia, horizon) LiDARs, and can be easily extended to support more LiDAR.
 4. Support external IMU.
-5. Support ARM-based platforms including Khadas VIM3, Nivida TX2, Raspberry 4B with 8G RAM.
+5. Support ARM-based platforms including Khadas VIM3, Nivida TX2, Raspberry Pi 4B(8G RAM).
 
 **Related papers**: 
 
