@@ -445,20 +445,20 @@ PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
 PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
 {
-    PointCloudXYZI::Ptr laserCloudFullRes(dense_pub_en ? feats_undistort : feats_down_body);
-    int size = laserCloudFullRes->points.size();
-    PointCloudXYZI::Ptr laserCloudWorld( \
-                    new PointCloudXYZI(size, 1));
-
-    for (int i = 0; i < size; i++)
-    {
-        RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
-                            &laserCloudWorld->points[i]);
-    }
-
     // *pcl_wait_pub += *laserCloudWorld;
-    if(1)
+    if(scan_pub_en)
     {
+        PointCloudXYZI::Ptr laserCloudFullRes(dense_pub_en ? feats_undistort : feats_down_body);
+        int size = laserCloudFullRes->points.size();
+        PointCloudXYZI::Ptr laserCloudWorld( \
+                        new PointCloudXYZI(size, 1));
+
+        for (int i = 0; i < size; i++)
+        {
+            RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
+                                &laserCloudWorld->points[i]);
+        }
+
         sensor_msgs::PointCloud2 laserCloudmsg;
         pcl::toROSMsg(*laserCloudWorld, laserCloudmsg);
         laserCloudmsg.header.stamp = ros::Time::now();
@@ -471,8 +471,17 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFullRes)
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. pcd save will largely influence the real-time performences **/
-    if (laserCloudWorld->size() > 0 && pcd_save_en)
+    if (pcd_save_en)
     {
+        int size = feats_undistort->points.size();
+        PointCloudXYZI::Ptr laserCloudWorld( \
+                        new PointCloudXYZI(size, 1));
+
+        for (int i = 0; i < size; i++)
+        {
+            RGBpointBodyToWorld(&feats_undistort->points[i], \
+                                &laserCloudWorld->points[i]);
+        }
         *pcl_wait_save += *laserCloudWorld;
     }
 }
@@ -879,7 +888,7 @@ int main(int argc, char** argv)
             
             /******* Publish points *******/
             publish_path(pubPath);
-            if(scan_pub_en) publish_frame_world(pubLaserCloudFullRes);
+            if (scan_pub_en || pcd_save_en)     publish_frame_world(pubLaserCloudFullRes);
             
             // publish_effect_world(pubLaserCloudEffect);
             // publish_map(pubLaserCloudMap);

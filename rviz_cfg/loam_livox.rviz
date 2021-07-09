@@ -35,7 +35,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: currPoints
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -87,7 +87,7 @@ Visualization Manager:
           Max Color: 255; 255; 255
           Max Intensity: 150
           Min Color: 0; 0; 0
-          Min Intensity: 1
+          Min Intensity: 0
           Name: surround
           Position Transformer: XYZ
           Queue Size: 1
@@ -211,7 +211,7 @@ Visualization Manager:
       Buffer Length: 2
       Class: rviz/Path
       Color: 25; 255; 255
-      Enabled: false
+      Enabled: true
       Head Diameter: 0
       Head Length: 0
       Length: 0.30000001192092896
@@ -229,7 +229,7 @@ Visualization Manager:
       Shaft Length: 0.4000000059604645
       Topic: /path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -326,25 +326,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 10
+      Distance: 62.12976837158203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.284592628479004
-        Y: -1.0116491317749023
-        Z: -9.5367431640625e-7
+        X: 5.488441467285156
+        Y: -29.57037353515625
+        Z: 2.2303884179564193e-6
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
-      Invert Z Axis: true
+      Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.31460127234458923
+      Pitch: 0.740202784538269
       Target Frame: camera_init
       Value: ThirdPersonFollower (rviz)
-      Yaw: 4.585422039031982
+      Yaw: 3.57222843170166
     Saved: ~
 Window Geometry:
   Displays:
