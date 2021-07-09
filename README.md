@@ -58,7 +58,7 @@ For **Ubuntu 18.04 or higher**, the **default** PCL and Eigen is enough for FAST
 
 ROS    >= Melodic. [ROS Installation](http://wiki.ros.org/ROS/Installation)
 
-### 1.2. **PCL && Eigen && openCV**
+### 1.2. **PCL && Eigen**
 PCL    >= 1.8,   Follow [PCL Installation](http://www.pointclouds.org/downloads/linux.html).
 
 Eigen  >= 3.3.4, Follow [Eigen Installation](http://eigen.tuxfamily.org/index.php?title=Main_Page).
