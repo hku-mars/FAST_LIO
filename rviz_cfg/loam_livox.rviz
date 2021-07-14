@@ -35,7 +35,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: surround
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -81,11 +81,11 @@ Visualization Manager:
           Class: rviz/PointCloud2
           Color: 238; 238; 236
           Color Transformer: Intensity
-          Decay Time: 0
+          Decay Time: 1000
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 150
+          Max Intensity: 158
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: surround
@@ -195,7 +195,7 @@ Visualization Manager:
             Shaft Length: 0.05000000074505806
             Shaft Radius: 0.05000000074505806
             Value: Axes
-          Topic: /aft_mapped_to_init
+          Topic: /Odometry
           Unreliable: false
           Value: true
       Enabled: true
@@ -302,7 +302,7 @@ Visualization Manager:
   Global Options:
     Background Color: 0; 0; 0
     Default Light: true
-    Fixed Frame: camera_init
+    Fixed Frame: global
     Frame Rate: 10
   Name: root
   Tools:
@@ -333,18 +333,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.488441467285156
-        Y: -29.57037353515625
-        Z: 2.2303884179564193e-6
+        X: 36.65506362915039
+        Y: 2.3543496131896973
+        Z: -1.0087411283166148e-5
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.740202784538269
-      Target Frame: camera_init
+      Pitch: 1.5697963237762451
+      Target Frame: global
       Value: ThirdPersonFollower (rviz)
-      Yaw: 3.57222843170166
+      Yaw: 3.0072357654571533
     Saved: ~
 Window Geometry:
   Displays:

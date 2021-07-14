@@ -5,7 +5,7 @@
 3. [UAV Avoiding Dynamic Obstacles](https://github.com/hku-mars/dyn_small_obs_avoidance): One of the implementation of FAST-LIO in robot's planning.
 4. [R2LIVE](https://github.com/hku-mars/r2live): A high-precision LiDAR-inertial-Vision fusion work using FAST-LIO as LiDAR-inertial front-end.
 5. [UGV Demo](https://www.youtube.com/watch?v=wikgrQbE6Cs): Model Predictive Control for Trajectory Tracking on Differentiable Manifolds.
-6. [SC-A-LOAM](https://github.com/gisbi-kim/SC-A-LOAM#for-livox-lidar): A [Scan-Context](https://github.com/irapkaist/scancontext) loop closure module that can directly work with FAST-LIO1 (The support for FAST-LIO2 is under developing).
+6. [SC-A-LOAM](https://github.com/gisbi-kim/SC-A-LOAM#for-livox-lidar): A [Scan-Context](https://github.com/irapkaist/scancontext) loop closure module that can directly work with FAST-LIO.
 
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
@@ -30,8 +30,8 @@
 
 **New Features:**
 1. Incremental mapping using [ikd-Tree](https://github.com/hku-mars/ikd-Tree), achieve faster speed and over 100Hz LiDAR rate.
-2. Direct odometry (scan to map) on Raw LiDAR points (feature extraction can be closed), achieving better accuracy.
-3. Since no need for feature extraction, FAST-LIO2 can support different LiDAR Types including spinning (Velodyne, Ouster) and solid-state (Avia, horizon) LiDARs, and can be easily extended to support more LiDAR.
+2. Direct odometry (scan to map) on Raw LiDAR points (feature extraction can be disabled), achieving better accuracy.
+3. Since no requirements for feature extraction, FAST-LIO2 can support may types of LiDAR including spinning (Velodyne, Ouster) and solid-state (Livox Avia, Horizon, MID-70) LiDARs, and can be easily extended to support more LiDARs.
 4. Support external IMU.
 5. Support ARM-based platforms including Khadas VIM3, Nivida TX2, Raspberry Pi 4B(8G RAM).
 
@@ -121,7 +121,7 @@ Edit ``` config/velodyne.yaml ``` to set the below parameters:
 
 1. LiDAR point cloud topic name: ``` lid_topic ```
 2. IMU topic name: ``` imu_topic ``` (both internal and external, 6-aixes or 9-axies are fine)
-3. Line number (we tested 16 and 32 line, but not tested 64 or above): ``` scan_line ```
+3. Line number (we tested 16, 32 and 64 line, but not tested 128 or above): ``` scan_line ```
 4. Translational extrinsic: ``` extrinsic_T ```
 5. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
 - The extrinsic parameters in FAST-LIO is defined as the LiDAR's pose (position and rotation matrix) in IMU body frame (i.e. the IMU is the base frame).
