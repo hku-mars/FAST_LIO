@@ -15,12 +15,13 @@ mapping:
     b_gyr_cov: 0.0001
     fov_degree:    90
     det_range:     450.0
+    extrinsic_est_en:  false      # true: enable the online estimation of IMU-LiDAR extrinsic
     extrinsic_T: [ 0.04165, 0.02326, -0.0284 ]
     extrinsic_R: [ 1, 0, 0,
                    0, 1, 0,
                    0, 0, 1]
 
 publish:     
-    scan_publish_en:  1       # 'false' will close all the point cloud output
-    dense_publish_en: 1       # false will low down the points number in a global-frame point clouds scan.
-    scan_bodyframe_pub_en: 1  # output the point cloud scans in IMU-body-frame
+    scan_publish_en:  true       # false: close all the point cloud output
+    dense_publish_en: true       # false: low down the points number in a global-frame point clouds scan.
+    scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
