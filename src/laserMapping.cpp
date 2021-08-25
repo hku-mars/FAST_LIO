@@ -91,7 +91,7 @@ double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0, lidar_en
 int    effct_feat_num = 0, time_log_counter = 0, scan_count = 0, publish_count = 0;
 int    iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0, laserCloudValidNum = 0, pcd_save_interval = -1, pcd_index = 0;
 bool   point_selected_surf[100000] = {0};
-bool   lidar_pushed, flg_reset, flg_exit = false, flg_EKF_inited;
+bool   lidar_pushed, flg_first_scan = true, flg_exit = false, flg_EKF_inited;
 bool   scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
 
 vector<vector<int>>  pointSearchInd_surf; 
@@ -360,6 +360,8 @@ void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
     sig_buffer.notify_all();
 }
 
+double lidar_mean_scantime = 0.0;
+int    scan_num = 0;
 bool sync_packages(MeasureGroup &meas)
 {
     if (lidar_buffer.empty() || imu_buffer.empty()) {
@@ -370,13 +372,25 @@ bool sync_packages(MeasureGroup &meas)
     if(!lidar_pushed)
     {
         meas.lidar = lidar_buffer.front();
-        if(meas.lidar->points.size() <= 1)
-        {
-            lidar_buffer.pop_front();
-            return false;
-        }
         meas.lidar_beg_time = time_buffer.front();
-        lidar_end_time = meas.lidar_beg_time + meas.lidar->points.back().curvature / double(1000);
+        if (meas.lidar->points.size() <= 1) // time too little
+        {
+            lidar_end_time = meas.lidar_beg_time + lidar_mean_scantime;
+            ROS_WARN("Too few input point cloud!\n");
+        }
+        else if (meas.lidar->points.back().curvature / double(1000) < 0.5 * lidar_mean_scantime)
+        {
+            lidar_end_time = meas.lidar_beg_time + lidar_mean_scantime;
+        }
+        else
+        {
+            scan_num ++;
+            lidar_end_time = meas.lidar_beg_time + meas.lidar->points.back().curvature / double(1000);
+            lidar_mean_scantime += (meas.lidar->points.back().curvature / double(1000) - lidar_mean_scantime) / scan_num;
+        }
+
+        meas.lidar_end_time = lidar_end_time;
+
         lidar_pushed = true;
     }
 
@@ -684,6 +698,13 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
         }
     }
 
+    if (effct_feat_num < 1)
+    {
+        ekfom_data.valid = false;
+        ROS_WARN("No Effective Points! \n");
+        return;
+    }
+
     res_mean_last = total_residual / effct_feat_num;
     match_time  += omp_get_wtime() - match_start;
     double solve_start_  = omp_get_wtime();
@@ -835,12 +856,11 @@ int main(int argc, char** argv)
         ros::spinOnce();
         if(sync_packages(Measures)) 
         {
-            if (flg_reset)
+            if (flg_first_scan)
             {
-                ROS_WARN("reset when rosbag play back");
-                p_imu->Reset();
-                flg_reset = false;
-                Measures.imu.clear();
+                first_lidar_time = Measures.lidar_beg_time;
+                p_imu->first_lidar_time = first_lidar_time;
+                flg_first_scan = false;
                 continue;
             }
 
@@ -859,9 +879,7 @@ int main(int argc, char** argv)
 
             if (feats_undistort->empty() || (feats_undistort == NULL))
             {
-                first_lidar_time = Measures.lidar_beg_time;
-                p_imu->first_lidar_time = first_lidar_time;
-                // cout<<"FAST-LIO not ready"<<endl;
+                ROS_WARN("No point, skip this scan!\n");
                 continue;
             }
 
@@ -896,6 +914,12 @@ int main(int argc, char** argv)
             // cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<" downsamp "<<feats_down_size<<" Map num: "<<featsFromMapNum<<"effect num:"<<effct_feat_num<<endl;
 
             /*** ICP and iterated Kalman filter update ***/
+            if (feats_down_size < 5)
+            {
+                ROS_WARN("No point, skip this scan!\n");
+                continue;
+            }
+            
             normvec->resize(feats_down_size);
             feats_down_world->resize(feats_down_size);
 

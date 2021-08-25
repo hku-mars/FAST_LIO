@@ -1634,22 +1634,25 @@ public:
 		{
 			dyn_share.valid = true;	
 			h_dyn_share(x_, dyn_share);
+
+			if(! dyn_share.valid)
+			{
+				continue; 
+			}
+
 			//Matrix<scalar_type, Eigen::Dynamic, 1> h = h_dyn_share(x_, dyn_share);
-		#ifdef USE_sparse
-			spMt h_x_ = dyn_share.h_x.sparseView();
-		#else
-			Eigen::Matrix<scalar_type, Eigen::Dynamic, 12> h_x_ = dyn_share.h_x;
-		#endif	
+			#ifdef USE_sparse
+				spMt h_x_ = dyn_share.h_x.sparseView();
+			#else
+				Eigen::Matrix<scalar_type, Eigen::Dynamic, 12> h_x_ = dyn_share.h_x;
+			#endif
 			double solve_start = omp_get_wtime();
 			dof_Measurement = h_x_.rows();
 			vectorized_state dx;
 			x_.boxminus(dx, x_propagated);
 			dx_new = dx;
 			
-			if(! dyn_share.valid)
-			{
-				continue; 
-			}
+			
 			
 			P_ = P_propagated;
 			
