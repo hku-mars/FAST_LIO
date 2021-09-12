@@ -136,9 +136,6 @@ Step B: Run below
 
 Step C: Run LiDAR's ros driver or play rosbag.
 
-*Remarks:*
-- We will produce some velodyne datasets which is already transfered to Rosbags, please wait for a while.
-
 ### 3.4 PCD file save
 
 Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated. ```pcl_viewer scans.pcd``` can visualize the point clouds.
@@ -154,26 +151,29 @@ Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global
 ```
 
 ## 4. Rosbag Example
-### 4.1 Indoor rosbag (Livox Avia LiDAR)
+### 4.1 Livox Avia Rosbag
+<div align="left">
+<img src="doc/results/HKU_LG_Indoor.png" width=47% />
+<img src="doc/results/HKU_MB_002.png" width = 51% >
 
-<div align="center"><img src="doc/results/HKU_LG_Indoor.png" width=100% /></div>
+Files: Can be downloaded from [google drive](https://drive.google.com/drive/folders/1YL5MQVYgAM8oAWUm7e3OGXZBPKkanmY1?usp=sharing)
 
-Download [avia_indoor_quick_shake_example1](https://drive.google.com/file/d/1SWmrwlUD5FlyA-bTr1rakIYx1GxS4xNl/view?usp=sharing) or [avia_indoor_quick_shake_example2](https://drive.google.com/file/d/1wD485CIbzZlNs4z8e20Dv2Q1q-7Gv_AT/view?usp=sharing) and then
+Run:
 ```
 roslaunch fast_lio mapping_avia.launch
 rosbag play YOUR_DOWNLOADED.bag
 
 ```
 
-### 4.2 Outdoor rosbag (Livox Avia LiDAR)
+### 4.2 Velodyne HDL-32E Rosbag
 
-<div align="center"><img src="doc/results/HKU_MB_002.png" width=100% /></div>
+**NCLT Dataset**: Original bin file can be found [here](http://robots.engin.umich.edu/nclt/).
 
-<!-- <div align="center"><img src="doc/results/mid40_outdoor.png" width=90% /></div> -->
-
-Download [avia_hku_main building_mapping](https://drive.google.com/file/d/1GSb9eLQuwqmgI3VWSB5ApEUhOCFG_Sv5/view?usp=sharing) and then
+We produce [Rosbag Files](https://drive.google.com/drive/folders/1VBK5idI1oyW0GC_I_Hxh63aqam3nocNK?usp=sharing) and [a python script](https://drive.google.com/file/d/1leh7DxbHx29DyS1NJkvEfeNJoccxH7XM/view) to generate Rosbag files: ```python3 sensordata_to_rosbag_fastlio.py bin_file_dir bag_name.bag```
+    
+Run:
 ```
-roslaunch fast_lio mapping_avia.launch
+roslaunch fast_lio mapping_velodyne.launch
 rosbag play YOUR_DOWNLOADED.bag
 ```
 
