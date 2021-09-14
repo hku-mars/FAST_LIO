@@ -88,8 +88,9 @@ Clone the repository and catkin_make:
 - If you want to use a custom build of PCL, add the following line to ~/.bashrc
 ```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
-
-Please make sure the IMU and LiDAR are **Synchronized**, that's important.
+Noted:
+A. Please make sure the IMU and LiDAR are **Synchronized**, that's important.
+B. The warning message "Failed to find match for field 'time'." means the timestamps of each LiDAR points are missed in the rosbag file. That is important for the forward propagation and backwark propagation.
 ### 3.1 For Avia
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
