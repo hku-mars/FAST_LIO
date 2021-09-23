@@ -773,6 +773,7 @@ int main(int argc, char** argv)
     nh.param<double>("preprocess/blind", p_pre->blind, 0.01);
     nh.param<int>("preprocess/lidar_type", p_pre->lidar_type, AVIA);
     nh.param<int>("preprocess/scan_line", p_pre->N_SCANS, 16);
+    nh.param<int>("preprocess/scan_rate", p_pre->SCAN_RATE, 10);
     nh.param<int>("point_filter_num", p_pre->point_filter_num, 2);
     nh.param<bool>("feature_extract_enable", p_pre->feature_enabled, false);
     nh.param<bool>("runtime_pos_log_enable", runtime_pos_log, 0);

@@ -8,6 +8,7 @@ Preprocess::Preprocess()
 {
   inf_bound = 10;
   N_SCANS   = 6;
+  SCAN_RATE = 10;
   group_size = 8;
   disA = 0.01;
   disA = 0.1; // B?
@@ -269,7 +270,7 @@ void Preprocess::velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     pl_surf.reserve(plsize);
 
     /*** These variables only works when no point timestamps given ***/
-    double omega_l=3.61;       // scan angular velocity
+    double omega_l = 0.361 * SCAN_RATE;       // scan angular velocity
     std::vector<bool> is_first(N_SCANS,true);
     std::vector<double> yaw_fp(N_SCANS, 0.0);      // yaw of first scan point
     std::vector<float> yaw_last(N_SCANS, 0.0);   // yaw of last scan point

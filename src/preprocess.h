@@ -94,7 +94,7 @@ class Preprocess
   PointCloudXYZI pl_full, pl_corn, pl_surf;
   PointCloudXYZI pl_buff[128]; //maximum 128 line lidar
   vector<orgtype> typess[128]; //maximum 128 line lidar
-  int lidar_type, point_filter_num, N_SCANS;;
+  int lidar_type, point_filter_num, N_SCANS, SCAN_RATE;
   double blind;
   bool feature_enabled, given_offset_time;
   ros::Publisher pub_full, pub_surf, pub_corn;
