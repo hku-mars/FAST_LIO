@@ -297,6 +297,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikf
   last_lidar_end_time_ = pcl_end_time;
 
   /*** undistort each lidar point (backward propagation) ***/
+  if (pcl_out.points.begin() == pcl_out.points.end()) return;
   auto it_pcl = pcl_out.points.end() - 1;
   for (auto it_kp = IMUpose.end() - 1; it_kp != IMUpose.begin(); it_kp--)
   {
