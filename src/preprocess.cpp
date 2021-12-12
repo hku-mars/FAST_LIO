@@ -267,6 +267,7 @@ void Preprocess::velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     pcl::PointCloud<velodyne_ros::Point> pl_orig;
     pcl::fromROSMsg(*msg, pl_orig);
     int plsize = pl_orig.points.size();
+    if (plsize == 0) return;
     pl_surf.reserve(plsize);
 
     /*** These variables only works when no point timestamps given ***/
