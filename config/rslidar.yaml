@@ -1,25 +1,25 @@
 common:
-    lid_topic:  "/livox/lidar"
-    imu_topic:  "/livox/imu"
+    lid_topic:  "/rslidar_points"
+    imu_topic:  "/imu0"
     time_sync_en: false         # ONLY turn on when external time synchronization is really not possible
-
+    
 preprocess:
-    lidar_type: 1                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 
-    scan_line: 6
-    blind: 2
+    lidar_type: 4                # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR, 4 for rslidar16
+    scan_line: 16
+    blind: 1
 
 mapping:
     acc_cov: 0.1
     gyr_cov: 0.1
     b_acc_cov: 0.0001
     b_gyr_cov: 0.0001
-    fov_degree:    90
-    det_range:     450.0
-    extrinsic_est_en:  false      # true: enable the online estimation of IMU-LiDAR extrinsic
-    extrinsic_T: [ 0.04165, 0.02326, -0.0284 ]
-    extrinsic_R: [ 1, 0, 0,
-                   0, 1, 0,
-                   0, 0, 1]
+    fov_degree:    180
+    det_range:     150.0
+    extrinsic_est_en:  true      # true: enable the online estimation of IMU-LiDAR extrinsic
+    extrinsic_T: [ 0.1, 0.0, 0.06 ]
+    extrinsic_R: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
 
 publish:
     path_en:  true
