@@ -15,8 +15,9 @@ enum LID_TYPE
   AVIA = 1,
   VELO16,
   OUST64,
-  RS16
-}; //{1, 2, 3,4}
+  RS16,
+  HS16
+}; //{1, 2, 3,4,5}
 enum Feature
 {
   Nor,
@@ -72,6 +73,20 @@ namespace velodyne_ros
 } // namespace velodyne_ros
 POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_ros::Point,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, time, time)(uint16_t, ring, ring))
+
+namespace hesai_ros
+{
+  struct EIGEN_ALIGN16 Point
+  {
+    PCL_ADD_POINT4D
+    float intensity;
+    double timestamp;
+    uint16_t ring; 
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+} //hesai_ros
+POINT_CLOUD_REGISTER_POINT_STRUCT(hesai_ros::Point,
+                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(double, timestamp, timestamp)(uint16_t, ring, ring))
 
 namespace ouster_ros
 {
@@ -129,6 +144,7 @@ class Preprocess
   void oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
   void velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
   void rslidar_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
+  void hesai_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
   void give_feature(PointCloudXYZI &pl, vector<orgtype> &types);
   void pub_func(PointCloudXYZI &pl, const ros::Time &ct);
   int  plane_judge(const PointCloudXYZI &pl, vector<orgtype> &types, uint i, uint &i_nex, Eigen::Vector3d &curr_direct);

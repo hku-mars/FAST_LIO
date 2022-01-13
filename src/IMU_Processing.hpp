@@ -23,6 +23,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/Vector3.h>
 #include "use-ikfom.hpp"
+#include <tf2_ros/transform_listener.h>
 
 /// *************Preconfiguration
 
@@ -63,6 +64,23 @@ public:
 private:
   void IMU_init(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state, int &N);
   void UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state, PointCloudXYZI &pcl_in_out);
+  bool waitForTransform(const std::string &from_frame_id,
+                        const std::string &to_frame_id,
+                        const ros::Time &frame_timestamp,
+                        const double &sleep_between_retries__s,
+                        const double &timeout__s);
+  M4D transformMsgToEigen(const geometry_msgs::Transform &transform_msg)
+  {
+    M4D transform = Eye4d;
+    V3D t(transform_msg.translation.x, transform_msg.translation.y, transform_msg.translation.z);
+    Eigen::Quaterniond q(transform_msg.rotation.w,
+                         transform_msg.rotation.x,
+                         transform_msg.rotation.y,
+                         transform_msg.rotation.z);
+    transform.block(0, 3, 3, 1) = t;
+    transform.block(0, 0, 3, 3) = q.toRotationMatrix();
+    return transform;
+  }
 
   PointCloudXYZI::Ptr cur_pcl_un_;
   sensor_msgs::ImuConstPtr last_imu_;
@@ -80,10 +98,13 @@ private:
   int init_iter_num = 1;
   bool b_first_frame_ = true;
   bool imu_need_init_ = true;
+
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 };
 
 ImuProcess::ImuProcess()
-    : b_first_frame_(true), imu_need_init_(true), start_timestamp_(-1)
+    : b_first_frame_(true), imu_need_init_(true), start_timestamp_(-1), tf_buffer_(ros::Duration(10)), tf_listener_(tf_buffer_)
 {
   init_iter_num = 1;
   Q = process_noise_cov();
@@ -226,8 +247,9 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikf
   /*** sort point clouds by offset time ***/
   pcl_out = *(meas.lidar);
   sort(pcl_out.points.begin(), pcl_out.points.end(), time_list);
-  // cout<<"[ IMU Process ]: Process lidar from "<<pcl_beg_time<<" to "<<pcl_end_time<<", " \
-  //          <<meas.imu.size()<<" imu msgs from "<<imu_beg_time<<" to "<<imu_end_time<<endl;
+  // ROS_INFO("[ IMU Process ]: Process lidar from %lf to %lf ", pcl_beg_time, pcl_end_time);
+  // ROS_INFO("[ IMU Process ]: imu msgs from %lf to %lf ", imu_beg_time, imu_end_time);
+  // ROS_INFO("in points: %lu", pcl_out.points.size());
 
   /*** Initialize IMU pose ***/
   state_ikfom imu_state = kf_state.get_x();
@@ -299,46 +321,115 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikf
   last_imu_ = meas.imu.back();
   last_lidar_end_time_ = pcl_end_time;
 
-  /*** undistort each lidar point (backward propagation) ***/
-  if (pcl_out.points.begin() == pcl_out.points.end())
-    return;
-  auto it_pcl = pcl_out.points.end() - 1;
-  for (auto it_kp = IMUpose.end() - 1; it_kp != IMUpose.begin(); it_kp--)
+  try
   {
-    auto head = it_kp - 1;
-    auto tail = it_kp;
-    R_imu << MAT_FROM_ARRAY(head->rot);
-    // cout<<"head imu acc: "<<acc_imu.transpose()<<endl;
-    vel_imu << VEC_FROM_ARRAY(head->vel);
-    pos_imu << VEC_FROM_ARRAY(head->pos);
-    acc_imu << VEC_FROM_ARRAY(tail->acc);
-    angvel_avr << VEC_FROM_ARRAY(tail->gyr);
+    string fixed_frame_id = "plateform";
+    string lidar_frame_id = "lidar";
+    ros::Time t_end = ros::Time().fromSec(pcl_end_time);
 
-    for (; it_pcl->curvature / double(1000) > head->offset_time; it_pcl--)
+    // Wait for all transforms to become available
+    if (!waitForTransform(fixed_frame_id, lidar_frame_id, t_end, 0.05, 0.25))
     {
-      dt = it_pcl->curvature / double(1000) - head->offset_time;
+      ROS_WARN("Could not get correction transform within allotted time, Skipping pointcloud.");
+      return;
+    }
 
-      /* Transform to the 'end' frame, using only the rotation
+    geometry_msgs::TransformStamped msg_T_platfrom_lidar_e =
+        tf_buffer_.lookupTransform(fixed_frame_id, lidar_frame_id, t_end);
+    M4D T_platfrom_lidar_e = transformMsgToEigen(msg_T_platfrom_lidar_e.transform);
+    // ROS_INFO("end time:%lf", t_end.toSec());
+    // cout << T_platfrom_lidar_e << endl;
+
+    geometry_msgs::TransformStamped msg_T_platfrom_lidar_e1 =
+        tf_buffer_.lookupTransform(lidar_frame_id, fixed_frame_id, t_end);
+    M4D T_platfrom_lidar_e1 = transformMsgToEigen(msg_T_platfrom_lidar_e1.transform);
+    // cout << T_platfrom_lidar_e1 << endl;
+
+    /*** undistort each lidar point (backward propagation) ***/
+    if (pcl_out.points.begin() == pcl_out.points.end())
+      return;
+    auto it_pcl = pcl_out.points.end() - 1;
+    for (auto it_kp = IMUpose.end() - 1; it_kp != IMUpose.begin(); it_kp--)
+    {
+      auto head = it_kp - 1;
+      auto tail = it_kp;
+      R_imu << MAT_FROM_ARRAY(head->rot);
+      // cout<<"head imu acc: "<<acc_imu.transpose()<<endl;
+      vel_imu << VEC_FROM_ARRAY(head->vel);
+      pos_imu << VEC_FROM_ARRAY(head->pos);
+      acc_imu << VEC_FROM_ARRAY(tail->acc);
+      angvel_avr << VEC_FROM_ARRAY(tail->gyr);
+
+      for (; it_pcl->curvature / double(1000) > head->offset_time; it_pcl--)
+      {
+        dt = it_pcl->curvature / double(1000) - head->offset_time;
+
+        /* Transform to the 'end' frame, using only the rotation
        * Note: Compensation direction is INVERSE of Frame's moving direction
        * So if we want to compensate a point at timestamp-i to the frame-e
        * P_compensate = R_imu_e ^ T * (R_i * P_i + T_ei) where T_ei is represented in global frame */
-      M3D R_i(R_imu * Exp(angvel_avr, dt));
+        M3D R_i(R_imu * Exp(angvel_avr, dt));
+        V3D T_i(pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt);
 
-      V3D P_i(it_pcl->x, it_pcl->y, it_pcl->z);
-      V3D T_ei(pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt - imu_state.pos);
-      V3D P_compensate = imu_state.offset_R_L_I.conjugate() * (imu_state.rot.conjugate() * (R_i * (imu_state.offset_R_L_I * P_i + imu_state.offset_T_L_I) + T_ei) - imu_state.offset_T_L_I); // not accurate!
+        V3D P_i(it_pcl->x, it_pcl->y, it_pcl->z);
+        V3D T_ei(pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt - imu_state.pos);
+        V3D P_compensate = imu_state.offset_R_L_I.conjugate() * (imu_state.rot.conjugate() * (R_i * (imu_state.offset_R_L_I * P_i + imu_state.offset_T_L_I) + T_ei) - imu_state.offset_T_L_I); // not accurate!
 
-    // 加了电机，畸变补偿需要改，imu预测位置后结合编码器矫正点云，然后把点云放进底座坐标系？
+#if 1
+        // imu和电机的安装关系：T_imu_platform
+        // 1.imu积分得到imu pose: T_w_imu
+        // 2.得到motor的转动: T_platform_lidar
+        // 3.计算出lidar pose: T_w_lidar =  T_w_imu * T_imu_platform * T_platform_lidar
+        // 4.1~3步骤分别算出雷达最后一个点e和中间点i时刻lidar的pose
+        // 5.根据每个点对应时刻的pose和最后一个点时刻的pose，计算出雷达的相对运动，补偿运动
+        // 6.把矫正后的点转到电机零位为初始坐标轴的坐标系下
+        // 7.IESKF update
+        M4D T_imu_platfrom = Eye4d; //已知，固定值
+
+        // 临时，加上电机后，offset_R_L_I变成了imu和电机之间的变换了
+        T_imu_platfrom.block(0, 0, 3, 3) = imu_state.offset_R_L_I.toRotationMatrix();
+        T_imu_platfrom.block(0, 3, 3, 1) = imu_state.offset_T_L_I;
+        // T_imu_platfrom.block(0, 3, 3, 1) = V3D(0, 0.00905, 0.113); //hesai
+
+        ros::Time t_start = ros::Time().fromSec(pcl_beg_time + it_pcl->curvature / double(1000));
+        geometry_msgs::TransformStamped msg_T_platfrom_lidar_i =
+            tf_buffer_.lookupTransform(fixed_frame_id, lidar_frame_id, t_start);
+        M4D T_platfrom_lidar_i = transformMsgToEigen(msg_T_platfrom_lidar_i.transform);
+
+        M4D T_w_imu_i = Eye4d;
+        T_w_imu_i.block(0, 0, 3, 3) = R_i;
+        T_w_imu_i.block(0, 3, 3, 1) = T_i;
+        M4D T_w_lidar_i = T_w_imu_i * T_imu_platfrom * T_platfrom_lidar_i;
+
+        M4D T_w_imu_e = Eye4d;
+        T_w_imu_e.block(0, 0, 3, 3) = imu_state.rot.toRotationMatrix();
+        T_w_imu_e.block(0, 3, 3, 1) = imu_state.pos;
+        M4D T_w_lidar_e = T_w_imu_e * T_imu_platfrom * T_platfrom_lidar_e;
+
+        M4D T_e_i = T_w_lidar_e.inverse() * T_w_lidar_i;
+        M3D r_e_i = T_e_i.block(0, 0, 3, 3);
+        V3D t_e_i = T_e_i.block(0, 3, 3, 1);
+        V3D P_compensate3 = r_e_i * P_i + t_e_i;
+        // if (it_kp == IMUpose.begin() + 1)
+        // {
+        // cout << "P_compensate: " << P_compensate.transpose() << endl;
+        // cout << "P_compensate3: " << P_compensate3.transpose() << endl;
+        // }
+
+        M3D R = T_platfrom_lidar_e.block(0, 0, 3, 3);
+        V3D T = T_platfrom_lidar_e.block(0, 3, 3, 1);
+        P_compensate = R * P_compensate3 + T;
+#endif
 
 #if 0
-      M3D R_Li = R_i * imu_state.offset_R_L_I; //第i个雷达点的旋转
+      M3D R_Li = R_i * imu_state.offset_R_L_I;                                                    //第i个雷达点的旋转
       V3D T_Li = R_i * imu_state.offset_T_L_I + pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt; //第i个雷达点的平移
-      M3D R_Le = imu_state.rot.toRotationMatrix() * imu_state.offset_R_L_I.toRotationMatrix(); //最后一个雷达点的旋转
-      V3D T_Le = imu_state.rot * imu_state.offset_T_L_I + imu_state.pos; //最后一个雷达点的平移
+      M3D R_Le = imu_state.rot.toRotationMatrix() * imu_state.offset_R_L_I.toRotationMatrix();    //最后一个雷达点的旋转
+      V3D T_Le = imu_state.rot * imu_state.offset_T_L_I + imu_state.pos;                          //最后一个雷达点的平移
       // V3D t_ei = T_Li - T_Le;
-      M3D r_ei = R_Le.inverse() * R_Li; //第i个点相对于最后一个点的旋转
+      M3D r_ei = R_Le.inverse() * R_Li;          //第i个点相对于最后一个点的旋转
       V3D t_ei = R_Le.inverse() * (T_Li - T_Le); //第i个点相对于最后一个点的平移
-      V3D P_compensate2 = r_ei * P_i + t_ei; //运动补偿
+      V3D P_compensate2 = r_ei * P_i + t_ei;     //运动补偿
       if (it_kp == IMUpose.begin() + 1)
       {
         cout << "t_ei: " << t_ei.transpose() << endl;
@@ -346,19 +437,60 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikf
         // 补偿后数值相等
         cout << "P_compensate: " << P_compensate.transpose() << endl;
         cout << "P_compensate2: " << P_compensate2.transpose() << endl;
+        // M4D ai = Eye4d;
+        // ai.block(0, 0, 3, 3) = R_Li;
+        // ai.block(0, 3, 3, 1) = T_Li;
+        // M4D ae = Eye4d;
+        // ae.block(0, 0, 3, 3) = R_Le;
+        // ae.block(0, 3, 3, 1) = T_Le;
+        // cout << "ai:\n"
+        //      << ai << endl;
+        // cout << "ae:\n"
+        //      << ae << endl;
       }
-
 #endif
 
-      // save Undistorted points and their rotation
-      it_pcl->x = P_compensate(0);
-      it_pcl->y = P_compensate(1);
-      it_pcl->z = P_compensate(2);
+        // save Undistorted points and their rotation
+        it_pcl->x = P_compensate(0);
+        it_pcl->y = P_compensate(1);
+        it_pcl->z = P_compensate(2);
 
-      if (it_pcl == pcl_out.points.begin())
-        break;
+        if (it_pcl == pcl_out.points.begin())
+          break;
+      }
     }
   }
+  catch (tf2::TransformException &ex)
+  {
+    ROS_WARN("%s", ex.what());
+    return;
+  }
+}
+
+bool ImuProcess::waitForTransform(const std::string &from_frame_id,
+                                  const std::string &to_frame_id,
+                                  const ros::Time &frame_timestamp,
+                                  const double &sleep_between_retries__s,
+                                  const double &timeout__s)
+{
+  // Total time spent waiting for the updated pose
+  ros::WallDuration t_waited(0.0);
+  // Maximum time to wait before giving up
+  ros::WallDuration t_max(timeout__s);
+  // Timeout between each update attempt
+  const ros::WallDuration t_sleep(sleep_between_retries__s);
+  while (t_waited < t_max)
+  {
+    if (tf_buffer_.canTransform(to_frame_id, from_frame_id, frame_timestamp))
+    {
+      return true;
+    }
+    t_sleep.sleep();
+    t_waited += t_sleep;
+  }
+  ROS_WARN("Waited %.3fs, but still could not get the TF from %s to %s",
+           t_waited.toSec(), from_frame_id.c_str(), to_frame_id.c_str());
+  return false;
 }
 
 void ImuProcess::Process(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state, PointCloudXYZI::Ptr cur_pcl_un_)

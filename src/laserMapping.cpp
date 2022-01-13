@@ -136,7 +136,8 @@ geometry_msgs::Quaternion geoQuat;
 geometry_msgs::PoseStamped msg_body_pose;
 
 shared_ptr<Preprocess> p_pre(new Preprocess());
-shared_ptr<ImuProcess> p_imu(new ImuProcess());
+// shared_ptr<ImuProcess> p_imu(new ImuProcess());
+ImuProcess *p_imu;
 
 void SigHandle(int sig)
 {
@@ -293,12 +294,17 @@ void standard_pcl_cbk(const sensor_msgs::PointCloud2::ConstPtr &msg)
         ROS_ERROR("lidar loop back, clear buffer");
         lidar_buffer.clear();
     }
+    else if (msg->header.stamp.toSec() - last_timestamp_lidar > 0.5)
+    {
+        ROS_WARN("lidar timestamp jumped!!\n  curr_%lf last_%lf", msg->header.stamp.toSec(), last_timestamp_lidar);
+    }
 
     PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
     p_pre->process(msg, ptr);
+    double timestamp_lidar = msg->header.stamp.toSec(); //+ 0.004;
     lidar_buffer.push_back(ptr);
-    time_buffer.push_back(msg->header.stamp.toSec());
-    last_timestamp_lidar = msg->header.stamp.toSec();
+    time_buffer.push_back(timestamp_lidar);
+    last_timestamp_lidar = timestamp_lidar;
     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
     mtx_buffer.unlock();
     sig_buffer.notify_all();
@@ -361,6 +367,10 @@ void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
         ROS_WARN("imu loop back, clear buffer");
         imu_buffer.clear();
     }
+    else if (msg->header.stamp.toSec() - last_timestamp_imu > 0.5)
+    {
+        ROS_WARN("imu timestamp jumped!! \n curr_%lf last_%lf", msg->header.stamp.toSec(), last_timestamp_lidar);
+    }
 
     last_timestamp_imu = timestamp;
 
@@ -383,7 +393,7 @@ bool sync_packages(MeasureGroup &meas)
     {
         meas.lidar = lidar_buffer.front();
         meas.lidar_beg_time = time_buffer.front();
-        
+
         // 最后一个点作为时间戳，begin time需要调整一下
         if (p_pre->lidar_type == RS16)
             meas.lidar_beg_time = time_buffer.front() - 0.1;
@@ -772,6 +782,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "laserMapping");
     ros::NodeHandle nh;
 
+    p_imu = new ImuProcess();
+
     nh.param<bool>("publish/path_en", path_en, true);
     nh.param<bool>("publish/scan_publish_en", scan_pub_en, true);
     nh.param<bool>("publish/dense_publish_en", dense_pub_en, true);
@@ -894,7 +906,7 @@ int main(int argc, char **argv)
 
             if (feats_undistort->empty() || (feats_undistort == NULL))
             {
-                ROS_WARN("No point, skip this scan!\n");
+                ROS_WARN("No point, skip this scan! 0x%x\n", feats_undistort);
                 continue;
             }
 

@@ -5,7 +5,12 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /TF1
+        - /TF1/Frames1
+        - /TF1/Frames1/body1
+        - /TF1/Frames1/body1/Position1
         - /mapping1
+        - /mapping1/currPoints1
         - /mapping1/currPoints1/Autocompute Value Bounds1
         - /Odometry1/Odometry1
         - /Odometry1/Odometry1/Shape1
@@ -76,6 +81,14 @@ Visualization Manager:
           Value: true
         camera_init:
           Value: true
+        imu:
+          Value: true
+        lidar:
+          Value: true
+        plateform:
+          Value: true
+        world_imu:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -129,7 +142,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: AxisColor
           Decay Time: 1000
-          Enabled: false
+          Enabled: true
           Invert Rainbow: true
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -144,7 +157,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -157,7 +170,7 @@ Visualization Manager:
           Color: 255; 0; 0
           Color Transformer: FlatColor
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -172,7 +185,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
       Enabled: true
       Name: mapping
     - Class: rviz/Group
@@ -337,16 +350,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 29.184616088867188
+      Distance: 73.33309936523438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.8501157760620117
-        Y: -5.809174537658691
-        Z: 0
+        X: -15.071576118469238
+        Y: -30.476119995117188
+        Z: 3.814697265625e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -355,7 +368,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: global
       Value: ThirdPersonFollower (rviz)
-      Yaw: 4.454012393951416
+      Yaw: 3.644007682800293
     Saved: ~
 Window Geometry:
   Displays:

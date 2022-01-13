@@ -41,6 +41,7 @@ typedef Vector3d V3D;
 typedef Matrix3d M3D;
 typedef Vector3f V3F;
 typedef Matrix3f M3F;
+typedef Matrix4d M4D;
 
 #define MD(a,b)  Matrix<double, (a), (b)>
 #define VD(a)    Matrix<double, (a), 1>
@@ -49,6 +50,7 @@ typedef Matrix3f M3F;
 
 M3D Eye3d(M3D::Identity());
 M3F Eye3f(M3F::Identity());
+M4D Eye4d(M4D::Identity());
 V3D Zero3d(0, 0, 0);
 V3F Zero3f(0, 0, 0);
 
