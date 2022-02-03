@@ -16,7 +16,7 @@
   	</node>
 
 	<!-- <group if="$(var rviz)">
-		<node launch-prefix="nice" pkg="rviz2" exec="rviz2" />
+		<node launch-prefix="nice" pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share fast_lio)/rviz_cfg/loam_livox.rviz" />
 	</group> -->
 
 </launch>
