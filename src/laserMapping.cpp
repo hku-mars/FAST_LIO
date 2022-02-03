@@ -748,6 +748,14 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
     solve_time += omp_get_wtime() - solve_start_;
 }
 
+std::shared_ptr<rclcpp::SubscriptionBase> create_sub_pcl(std::shared_ptr<rclcpp::Node> node, int lidar_type, string &lid_topic)
+{
+    if (lidar_type == AVIA)
+        return node->create_subscription<livox_interfaces::msg::CustomMsg>(lid_topic, rclcpp::SystemDefaultsQoS(), std::bind(&livox_pcl_cbk, std::placeholders::_1));
+    else
+        return node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SystemDefaultsQoS(), std::bind(&standard_pcl_cbk, std::placeholders::_1));
+}
+
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
@@ -833,10 +841,7 @@ int main(int argc, char** argv)
         cout << "~~~~"<<ROOT_DIR<<" doesn't exist" << endl;
 
     /*** ROS subscribe initialization ***/
-    if (p_pre->lidar_type == AVIA)
-        auto sub_pcl = node->create_subscription<livox_interfaces::msg::CustomMsg>(lid_topic, rclcpp::SystemDefaultsQoS(), std::bind(&livox_pcl_cbk, std::placeholders::_1));
-    else
-        auto sub_pcl = node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SystemDefaultsQoS(), std::bind(&standard_pcl_cbk, std::placeholders::_1));
+    std::shared_ptr<rclcpp::SubscriptionBase> sub_pcl = create_sub_pcl(node, p_pre->lidar_type, lid_topic);
     auto sub_imu = node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, rclcpp::SystemDefaultsQoS(), std::bind(&imu_cbk, std::placeholders::_1));
     auto pubLaserCloudFull = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", rclcpp::SystemDefaultsQoS());
     auto pubLaserCloudFull_body = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered_body", rclcpp::SystemDefaultsQoS());
