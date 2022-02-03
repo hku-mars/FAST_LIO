@@ -50,6 +50,10 @@ find_path(MATPLOTLIB_CPP_INCLUDE_DIRS "matplotlibcpp.h")
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Pose6D.msg"
+)
+
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.8 REQUIRED)
 
@@ -60,16 +64,6 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
   include)
-
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/Pose6D.msg"
-)
-
-# catkin_package(
-#   CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime
-#   DEPENDS EIGEN3 PCL
-#   INCLUDE_DIRS
-# )
 
 ament_auto_add_executable(fastlio_mapping src/laserMapping.cpp include/ikd-Tree/ikd_Tree.cpp src/preprocess.cpp)
 rosidl_target_interfaces(fastlio_mapping ${PROJECT_NAME} "rosidl_typesupport_cpp")

@@ -20,7 +20,8 @@
   <depend>pcl_ros</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
-  <depend>tf</depend>
+  <depend>tf2</depend>
+  <depend>visualization_msgs</depend>
 
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
