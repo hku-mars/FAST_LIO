@@ -190,7 +190,11 @@ void ImuProcess::IMU_init(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 
 
     N ++;
   }
+  Eigen::Quaterniond rotation = Eigen::Quaterniond::FromTwoVectors(mean_acc, Eigen::Vector3d::UnitZ());
+  mean_acc = rotation * mean_acc;
+  mean_gyr = rotation * mean_gyr;
   state_ikfom init_state = kf_state.get_x();
+  init_state.rot = rotation;
   init_state.grav = S2(- mean_acc / mean_acc.norm() * G_m_s2);
   
   //state_inout.rot = Eye3d; // Exp(mean_acc.cross(V3D(0, 0, -1 / scale_gravity)));
