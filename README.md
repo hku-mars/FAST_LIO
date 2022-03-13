@@ -123,9 +123,10 @@ Edit ``` config/velodyne.yaml ``` to set the below parameters:
 
 1. LiDAR point cloud topic name: ``` lid_topic ```
 2. IMU topic name: ``` imu_topic ``` (both internal and external, 6-aixes or 9-axies are fine)
-3. Line number (we tested 16, 32 and 64 line, but not tested 128 or above): ``` scan_line ```
-4. Translational extrinsic: ``` extrinsic_T ```
-5. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
+3. Set the parameter ```timestamp_unit``` based on the unit of **time** (Velodyne) or **t** (Ouster) field in PoindCloud2 rostopic
+4. Line number (we tested 16, 32 and 64 line, but not tested 128 or above): ``` scan_line ```
+5. Translational extrinsic: ``` extrinsic_T ```
+6. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
 - The extrinsic parameters in FAST-LIO is defined as the LiDAR's pose (position and rotation matrix) in IMU body frame (i.e. the IMU is the base frame).
 
 Step B: Run below
