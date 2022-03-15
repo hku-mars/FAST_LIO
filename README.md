@@ -89,8 +89,13 @@ Clone the repository and catkin_make:
 ```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
 Noted:
+
 A. Please make sure the IMU and LiDAR are **Synchronized**, that's important.
+
 B. The warning message "Failed to find match for field 'time'." means the timestamps of each LiDAR points are missed in the rosbag file. That is important for the forward propagation and backwark propagation.
+
+C. Recommend to set the extrinsic_est_en to false if the extrinsic is give, as the online extrinsic calibration always requires much excitations to convergence.
+
 ### 3.1 For Avia
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
 ```
