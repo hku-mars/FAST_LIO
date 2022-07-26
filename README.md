@@ -151,7 +151,31 @@ Step B: Run below
 
 Step C: Run LiDAR's ros driver or play rosbag.
 
-### 3.4 PCD file save
+### 3.4 For Robosense 32ch
+
+Step A: Setup before run
+
+Edit ``` config/rs32.yaml ``` to set the below parameters:
+
+1. LiDAR point cloud topic name: ``` lid_topic ```
+2. IMU topic name: ``` imu_topic ``` (both internal and external, 6-aixes or 9-axies are fine)
+3. Set the parameter ```timestamp_unit``` based on the unit : 2 (microsecond)
+4. Line number (we tested 32 line): ``` scan_line ```
+5. Translational extrinsic: ``` extrinsic_T ```
+6. Rotational extrinsic: ``` extrinsic_R ``` (only support rotation matrix)
+- The extrinsic parameters in FAST-LIO is defined as the LiDAR's pose (position and rotation matrix) in IMU body frame (i.e. the IMU is the base frame).
+
+Step B: Run below
+```
+    cd ~/$FAST_LIO_ROS_DIR$
+    source devel/setup.bash
+    roslaunch fast_lio mapping_rs32.launch
+```
+
+Step C: Run LiDAR's ros driver or play rosbag.
+
+
+### 3.5 PCD file save
 
 Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated. ```pcl_viewer scans.pcd``` can visualize the point clouds.
 
