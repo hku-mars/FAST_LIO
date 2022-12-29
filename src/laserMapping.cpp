@@ -82,7 +82,7 @@ mutex mtx_buffer;
 condition_variable sig_buffer;
 
 string root_dir = ROOT_DIR;
-string map_file_path, lid_topic, imu_topic;
+string map_file_path, lid_topic, imu_topic,world_frame,body_frame;
 
 double res_mean_last = 0.05, total_residual = 0.0;
 double last_timestamp_lidar = 0, last_timestamp_imu = -1.0;
