@@ -104,18 +104,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 )
 ament_export_dependencies(rosidl_default_runtime)
 
-# include_directories(
-# ${EIGEN3_INCLUDE_DIR}
-# ${PCL_INCLUDE_DIRS}
-# ${PYTHON_INCLUDE_DIRS}
-# include)
-
-# catkin_package(
-# CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime
-# DEPENDS EIGEN3 PCL
-# INCLUDE_DIRS
-# )
-
 add_executable(fastlio_mapping src/laserMapping.cpp include/ikd-Tree/ikd_Tree.cpp src/preprocess.cpp)
 target_include_directories(fastlio_mapping PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -133,6 +121,11 @@ ament_target_dependencies(fastlio_mapping ${dependencies})
 # ---------------- Install --------------- #
 install(TARGETS fastlio_mapping
   DESTINATION lib/${PROJECT_NAME}
+)
+
+include(
+  DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_package()

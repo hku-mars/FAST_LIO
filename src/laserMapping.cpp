@@ -146,6 +146,7 @@ void SigHandle(int sig)
     flg_exit = true;
     std::cout << "catch sig %d" << sig << std::endl;
     sig_buffer.notify_all();
+    rclcpp::shutdown();
 }
 
 inline void dump_lio_state_to_log(FILE *fp)  
@@ -1051,7 +1052,8 @@ int main(int argc, char** argv)
 
     rclcpp::spin(std::make_shared<LaserMappingNode>());
 
-    rclcpp::shutdown();
+    if (rclcpp::ok())
+        rclcpp::shutdown();
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. pcd save will largely influence the real-time performences **/
