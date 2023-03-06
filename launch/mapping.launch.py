@@ -13,6 +13,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     package_path = get_package_share_directory('fast_lio')
     default_config_path = os.path.join(package_path, 'config', 'mid360.yaml')
+    default_rviz_config_path = os.path.join(package_path, 'rviz', 'fastlio.rviz')
 
     config_path = LaunchConfiguration('config_path')
     rviz_use = LaunchConfiguration('rviz')
@@ -26,6 +27,10 @@ def generate_launch_description():
         'rviz', default_value='true', choices=['true', 'false'],
         description='Use RViz to monitor results'
     )
+    declare_rviz_config_path_cmd = DeclareLaunchArgument(
+        'rviz_cfg', default_value=default_rviz_config_path,
+        description='RViz config file path'
+    )
 
     fast_lio_node = Node(
         package='fast_lio',
@@ -36,13 +41,14 @@ def generate_launch_description():
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
-        arguments=[],
+        arguments=['-d', rviz_cfg],
         condition=IfCondition(rviz_use)
     )
 
     ld = LaunchDescription()
     ld.add_action(declare_config_path_cmd)
     ld.add_action(declare_rviz_cmd)
+    ld.add_action(declare_rviz_config_path_cmd)
 
     ld.add_action(fast_lio_node)
     ld.add_action(rviz_node)
