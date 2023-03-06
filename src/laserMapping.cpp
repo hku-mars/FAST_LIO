@@ -96,6 +96,7 @@ int    iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0, laserCloudVal
 bool   point_selected_surf[100000] = {0};
 bool   lidar_pushed, flg_first_scan = true, flg_exit = false, flg_EKF_inited;
 bool   scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
+bool    is_first_lidar = true;
 
 vector<vector<int>>  pointSearchInd_surf; 
 vector<BoxPointType> cub_needrm;
@@ -284,10 +285,14 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::UniquePtr msg)
     scan_count ++;
     double cur_time = get_time_sec(msg->header.stamp);
     double preprocess_start_time = omp_get_wtime();
-    if (cur_time < last_timestamp_lidar)
+    if (!is_first_lidar && cur_time < last_timestamp_lidar)
     {
         std::cerr << "lidar loop back, clear buffer" << std::endl;
         lidar_buffer.clear();
+    }
+    if (is_first_lidar)
+    {
+        is_first_lidar = false;
     }
 
     PointCloudXYZI::Ptr  ptr(new PointCloudXYZI());
@@ -308,10 +313,14 @@ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg)
     double cur_time = get_time_sec(msg->header.stamp);
     double preprocess_start_time = omp_get_wtime();
     scan_count ++;
-    if (cur_time < last_timestamp_lidar)
+    if (!is_first_lidar && cur_time < last_timestamp_lidar)
     {
         std::cerr << "lidar loop back, clear buffer" << std::endl;
         lidar_buffer.clear();
+    }
+    if(is_first_lidar)
+    {
+        is_first_lidar = false;
     }
     last_timestamp_lidar = cur_time;
     
@@ -760,39 +769,73 @@ class LaserMappingNode : public rclcpp::Node
 public:
     LaserMappingNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions()) : Node("laser_mapping", options)
     {
-        this->get_parameter_or<bool>("publish/path_en", path_en, true);
-        this->get_parameter_or<bool>("publish/scan_publish_en", scan_pub_en, true);
-        this->get_parameter_or<bool>("publish/dense_publish_en", dense_pub_en, true);
-        this->get_parameter_or<bool>("publish/scan_bodyframe_pub_en", scan_body_pub_en, true);
+        this->declare_parameter<bool>("publish.path_en", true);
+        this->declare_parameter<bool>("publish.scan_publish_en", true);
+        this->declare_parameter<bool>("publish.dense_publish_en", true);
+        this->declare_parameter<bool>("publish.scan_bodyframe_pub_en", true);
+        this->declare_parameter<int>("max_iteration", 4);
+        this->declare_parameter<string>("map_file_path", "");
+        this->declare_parameter<string>("common.lid_topic", "/livox/lidar");
+        this->declare_parameter<string>("common.imu_topic", "/livox/imu");
+        this->declare_parameter<bool>("common.time_sync_en", false);
+        this->declare_parameter<double>("common.time_offset_lidar_to_imu", 0.0);
+        this->declare_parameter<double>("filter_size_corner", 0.5);
+        this->declare_parameter<double>("filter_size_surf", 0.5);
+        this->declare_parameter<double>("filter_size_map", 0.5);
+        this->declare_parameter<double>("cube_side_length", 200.);
+        this->declare_parameter<float>("mapping.det_range", 300.);
+        this->declare_parameter<double>("mapping.fov_degree", 180.);
+        this->declare_parameter<double>("mapping.gyr_cov", 0.1);
+        this->declare_parameter<double>("mapping.acc_cov", 0.1);
+        this->declare_parameter<double>("mapping.b_gyr_cov", 0.0001);
+        this->declare_parameter<double>("mapping.b_acc_cov", 0.0001);
+        this->declare_parameter<double>("preprocess.blind", 0.01);
+        this->declare_parameter<int>("preprocess.lidar_type", AVIA);
+        this->declare_parameter<int>("preprocess.scan_line", 16);
+        this->declare_parameter<int>("preprocess.timestamp_unit", US);
+        this->declare_parameter<int>("preprocess.scan_rate", 10);
+        this->declare_parameter<int>("point_filter_num", 2);
+        this->declare_parameter<bool>("feature_extract_enable", false);
+        this->declare_parameter<bool>("runtime_pos_log_enable", false);
+        this->declare_parameter<bool>("mapping.extrinsic_est_en", true);
+        this->declare_parameter<bool>("pcd_save/pcd_save_en", false);
+        this->declare_parameter<int>("pcd_save.interval", -1);
+        this->declare_parameter<vector<double>>("mapping.extrinsic_T", vector<double>());
+        this->declare_parameter<vector<double>>("mapping.extrinsic_R", vector<double>());
+
+        this->get_parameter_or<bool>("publish.path_en", path_en, true);
+        this->get_parameter_or<bool>("publish.scan_publish_en", scan_pub_en, true);
+        this->get_parameter_or<bool>("publish.dense_publish_en", dense_pub_en, true);
+        this->get_parameter_or<bool>("publish.scan_bodyframe_pub_en", scan_body_pub_en, true);
         this->get_parameter_or<int>("max_iteration", NUM_MAX_ITERATIONS, 4);
         this->get_parameter_or<string>("map_file_path", map_file_path, "");
-        this->get_parameter_or<string>("common/lid_topic", lid_topic, "/livox/lidar");
-        this->get_parameter_or<string>("common/imu_topic", imu_topic,"/livox/imu");
-        this->get_parameter_or<bool>("common/time_sync_en", time_sync_en, false);
-        this->get_parameter_or<double>("common/time_offset_lidar_to_imu", time_diff_lidar_to_imu, 0.0);
+        this->get_parameter_or<string>("common.lid_topic", lid_topic, "/livox/lidar");
+        this->get_parameter_or<string>("common.imu_topic", imu_topic,"/livox/imu");
+        this->get_parameter_or<bool>("common.time_sync_en", time_sync_en, false);
+        this->get_parameter_or<double>("common.time_offset_lidar_to_imu", time_diff_lidar_to_imu, 0.0);
         this->get_parameter_or<double>("filter_size_corner",filter_size_corner_min,0.5);
         this->get_parameter_or<double>("filter_size_surf",filter_size_surf_min,0.5);
         this->get_parameter_or<double>("filter_size_map",filter_size_map_min,0.5);
-        this->get_parameter_or<double>("cube_side_length",cube_len,200);
-        this->get_parameter_or<float>("mapping/det_range",DET_RANGE,300.f);
-        this->get_parameter_or<double>("mapping/fov_degree",fov_deg,180);
-        this->get_parameter_or<double>("mapping/gyr_cov",gyr_cov,0.1);
-        this->get_parameter_or<double>("mapping/acc_cov",acc_cov,0.1);
-        this->get_parameter_or<double>("mapping/b_gyr_cov",b_gyr_cov,0.0001);
-        this->get_parameter_or<double>("mapping/b_acc_cov",b_acc_cov,0.0001);
-        this->get_parameter_or<double>("preprocess/blind", p_pre->blind, 0.01);
-        this->get_parameter_or<int>("preprocess/lidar_type", p_pre->lidar_type, AVIA);
-        this->get_parameter_or<int>("preprocess/scan_line", p_pre->N_SCANS, 16);
-        this->get_parameter_or<int>("preprocess/timestamp_unit", p_pre->time_unit, US);
-        this->get_parameter_or<int>("preprocess/scan_rate", p_pre->SCAN_RATE, 10);
+        this->get_parameter_or<double>("cube_side_length",cube_len,200.f);
+        this->get_parameter_or<float>("mapping.det_range",DET_RANGE,300.f);
+        this->get_parameter_or<double>("mapping.fov_degree",fov_deg,180.f);
+        this->get_parameter_or<double>("mapping.gyr_cov",gyr_cov,0.1);
+        this->get_parameter_or<double>("mapping.acc_cov",acc_cov,0.1);
+        this->get_parameter_or<double>("mapping.b_gyr_cov",b_gyr_cov,0.0001);
+        this->get_parameter_or<double>("mapping.b_acc_cov",b_acc_cov,0.0001);
+        this->get_parameter_or<double>("preprocess.blind", p_pre->blind, 0.01);
+        this->get_parameter_or<int>("preprocess.lidar_type", p_pre->lidar_type, AVIA);
+        this->get_parameter_or<int>("preprocess.scan_line", p_pre->N_SCANS, 16);
+        this->get_parameter_or<int>("preprocess.timestamp_unit", p_pre->time_unit, US);
+        this->get_parameter_or<int>("preprocess.scan_rate", p_pre->SCAN_RATE, 10);
         this->get_parameter_or<int>("point_filter_num", p_pre->point_filter_num, 2);
         this->get_parameter_or<bool>("feature_extract_enable", p_pre->feature_enabled, false);
         this->get_parameter_or<bool>("runtime_pos_log_enable", runtime_pos_log, 0);
-        this->get_parameter_or<bool>("mapping/extrinsic_est_en", extrinsic_est_en, true);
-        this->get_parameter_or<bool>("pcd_save/pcd_save_en", pcd_save_en, false);
-        this->get_parameter_or<int>("pcd_save/interval", pcd_save_interval, -1);
-        this->get_parameter_or<vector<double>>("mapping/extrinsic_T", extrinT, vector<double>());
-        this->get_parameter_or<vector<double>>("mapping/extrinsic_R", extrinR, vector<double>());
+        this->get_parameter_or<bool>("mapping.extrinsic_est_en", extrinsic_est_en, true);
+        this->get_parameter_or<bool>("pcd_save.pcd_save_en", pcd_save_en, false);
+        this->get_parameter_or<int>("pcd_save.interval", pcd_save_interval, -1);
+        this->get_parameter_or<vector<double>>("mapping.extrinsic_T", extrinT, vector<double>());
+        this->get_parameter_or<vector<double>>("mapping.extrinsic_R", extrinR, vector<double>());
 
         RCLCPP_INFO(this->get_logger(), "p_pre->lidar_type %d", p_pre->lidar_type);
 
@@ -850,6 +893,7 @@ public:
         {
             sub_pcl_pc_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, 20, standard_pcl_cbk);
         }
+        sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 10, imu_cbk);
         pubLaserCloudFull_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", 20);
         pubLaserCloudFull_body_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered_body", 20);
         pubLaserCloudEffect_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_effected", 20);
@@ -861,6 +905,8 @@ public:
         //------------------------------------------------------------------------------------------------------
         auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(1000.0 / 100.0));
         timer_ = rclcpp::create_timer(this, this->get_clock(), period_ms, std::bind(&LaserMappingNode::timer_callback, this));
+
+        RCLCPP_INFO(this->get_logger(), "Node init finished.");
     }
 
     ~LaserMappingNode()
@@ -875,7 +921,7 @@ private:
     {
         if(sync_packages(Measures))
         {
-                        if (flg_first_scan)
+            if (flg_first_scan)
             {
                 first_lidar_time = Measures.lidar_beg_time;
                 p_imu->first_lidar_time = first_lidar_time;
@@ -1029,6 +1075,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudMap_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pcl_pc_;
     rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
 

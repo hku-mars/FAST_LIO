@@ -74,20 +74,6 @@ set(dependencies
   livox_ros_driver2
 )
 
-# find_package(catkin REQUIRED COMPONENTS
-# geometry_msgs
-# nav_msgs
-# sensor_msgs
-# roscpp
-# rospy
-# std_msgs
-# pcl_ros
-# tf
-# livox_ros_driver
-# message_generation
-# eigen_conversions
-# )
-
 # Thirdparty libraries
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io)
@@ -123,8 +109,8 @@ install(TARGETS fastlio_mapping
   DESTINATION lib/${PROJECT_NAME}
 )
 
-include(
-  DIRECTORY config launch
+install(
+  DIRECTORY config launch rviz
   DESTINATION share/${PROJECT_NAME}
 )
 

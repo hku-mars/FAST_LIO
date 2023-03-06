@@ -256,7 +256,7 @@ bool esti_plane(Matrix<T, 4, 1> &pca_result, const PointVector &point, const T &
 
 double get_time_sec(const builtin_interfaces::msg::Time &time)
 {
-    return time.sec + time.nanosec * 1e-9;
+    return rclcpp::Time(time).seconds();
 }
 
 rclcpp::Time get_ros_time(double timestamp)
