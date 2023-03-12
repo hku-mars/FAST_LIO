@@ -13,7 +13,8 @@ from launch_ros.actions import Node, SetUseSimTime
 def generate_launch_description():
     package_path = get_package_share_directory('fast_lio')
     default_config_path = os.path.join(package_path, 'config', 'mid360.yaml')
-    default_rviz_config_path = os.path.join(package_path, 'rviz', 'fastlio.rviz')
+    default_rviz_config_path = os.path.join(
+        package_path, 'rviz', 'fastlio.rviz')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     config_path = LaunchConfiguration('config_path')
@@ -29,7 +30,7 @@ def generate_launch_description():
         description='Yaml config file path'
     )
     declare_rviz_cmd = DeclareLaunchArgument(
-        'rviz', default_value='true', choices=['true', 'false'],
+        'rviz', default_value='true',
         description='Use RViz to monitor results'
     )
     declare_rviz_config_path_cmd = DeclareLaunchArgument(
@@ -40,7 +41,8 @@ def generate_launch_description():
     fast_lio_node = Node(
         package='fast_lio',
         executable='fastlio_mapping',
-        parameters=[config_path],
+        parameters=[config_path,
+                    {'use_sim_time': use_sim_time}],
         output='screen'
     )
     rviz_node = Node(
@@ -55,7 +57,6 @@ def generate_launch_description():
     ld.add_action(declare_config_path_cmd)
     ld.add_action(declare_rviz_cmd)
     ld.add_action(declare_rviz_config_path_cmd)
-    ld.add_action(SetUseSimTime(use_sim_time))
 
     ld.add_action(fast_lio_node)
     ld.add_action(rviz_node)
