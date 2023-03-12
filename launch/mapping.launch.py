@@ -7,7 +7,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition
 
-from launch_ros.actions import Node
+from launch_ros.actions import Node, SetUseSimTime
 
 
 def generate_launch_description():
@@ -15,10 +15,15 @@ def generate_launch_description():
     default_config_path = os.path.join(package_path, 'config', 'mid360.yaml')
     default_rviz_config_path = os.path.join(package_path, 'rviz', 'fastlio.rviz')
 
+    use_sim_time = LaunchConfiguration('use_sim_time')
     config_path = LaunchConfiguration('config_path')
     rviz_use = LaunchConfiguration('rviz')
     rviz_cfg = LaunchConfiguration('rviz_cfg')
 
+    declare_use_sim_time_cmd = DeclareLaunchArgument(
+        'use_sim_time', default_value='false',
+        description='Use simulation (Gazebo) clock if true'
+    )
     declare_config_path_cmd = DeclareLaunchArgument(
         'config_path', default_value=default_config_path,
         description='Yaml config file path'
@@ -46,9 +51,11 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription()
+    ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_config_path_cmd)
     ld.add_action(declare_rviz_cmd)
     ld.add_action(declare_rviz_config_path_cmd)
+    ld.add_action(SetUseSimTime(LaunchConfiguration('use_sim_time')))
 
     ld.add_action(fast_lio_node)
     ld.add_action(rviz_node)

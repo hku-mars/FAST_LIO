@@ -99,9 +99,18 @@ target_include_directories(fastlio_mapping PUBLIC
 target_link_libraries(fastlio_mapping ${PCL_LIBRARIES} ${PYTHON_LIBRARIES} Eigen3::Eigen)
 target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS})
 
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(fastlio_mapping ${cpp_typesupport_target})
+list(APPEND EOL_LIST "foxy" "galactic" "eloquent" "dashing" "crystal")
+
+if($ENV{ROS_DISTRO} IN_LIST EOL_LIST)
+  # Custommsg to support foxy & galactic
+  rosidl_target_interfaces(fastlio_mapping
+    ${PROJECT_NAME} "rosidl_typesupport_cpp")
+else()
+  rosidl_get_typesupport_target(cpp_typesupport_target
+    ${PROJECT_NAME} "rosidl_typesupport_cpp")
+  target_link_libraries(fastlio_mapping ${cpp_typesupport_target})
+endif()
+
 ament_target_dependencies(fastlio_mapping ${dependencies})
 
 # ---------------- Install --------------- #
