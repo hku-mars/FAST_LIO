@@ -55,7 +55,7 @@ def generate_launch_description():
     ld.add_action(declare_config_path_cmd)
     ld.add_action(declare_rviz_cmd)
     ld.add_action(declare_rviz_config_path_cmd)
-    ld.add_action(SetUseSimTime(LaunchConfiguration('use_sim_time')))
+    ld.add_action(SetUseSimTime(use_sim_time))
 
     ld.add_action(fast_lio_node)
     ld.add_action(rviz_node)
