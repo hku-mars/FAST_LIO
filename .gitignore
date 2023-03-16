@@ -1,8 +1,7 @@
-build
 Log/*.png
 Log/*.txt
 Log/*.csv
 Log/*.pdf
-.vscode/c_cpp_properties.json
-.vscode/settings.json
+.vscode/*
 PCD/*.pcd
+.DS_Store
