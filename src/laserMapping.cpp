@@ -162,6 +162,26 @@ inline void dump_lio_state_to_log(FILE *fp)
     fflush(fp);
 }
 
+inline void publish_lio_state_to_ros(ros::Publisher pubLioState)
+{
+    geometry_msgs::PoseStamped msg;
+    msg.header.frame_id = "camera_init";
+    // msg.header.stamp = ros::Time::now();
+    msg.header.stamp = ros::Time().fromSec(last_timestamp_lidar);
+
+    msg.pose.position.x = state_point.pos(0);
+    msg.pose.position.y = state_point.pos(1);
+    msg.pose.position.z = state_point.pos(2);
+    
+    Eigen::Quaterniond rot_quat(state_point.rot.toRotationMatrix());
+    msg.pose.orientation.w = rot_quat.w();
+    msg.pose.orientation.x = rot_quat.x();
+    msg.pose.orientation.y = rot_quat.y();
+    msg.pose.orientation.z = rot_quat.z();
+
+    pubLioState.publish(msg);
+}
+
 void pointBodyToWorld_ikfom(PointType const * const pi, PointType * const po, state_ikfom &s)
 {
     V3D p_body(pi->x, pi->y, pi->z);
@@ -851,6 +871,8 @@ int main(int argc, char** argv)
             ("/Odometry", 100000);
     ros::Publisher pubPath          = nh.advertise<nav_msgs::Path> 
             ("/path", 100000);
+    ros::Publisher pubLioState = nh.advertise<geometry_msgs::PoseStamped>
+            ("/fastlio/pose", 100000);
 //------------------------------------------------------------------------------------------------------
     signal(SIGINT, SigHandle);
     ros::Rate rate(5000);
@@ -1004,6 +1026,8 @@ int main(int argc, char** argv)
                 fout_out << setw(20) << Measures.lidar_beg_time - first_lidar_time << " " << euler_cur.transpose() << " " << state_point.pos.transpose()<< " " << ext_euler.transpose() << " "<<state_point.offset_T_L_I.transpose()<<" "<< state_point.vel.transpose() \
                 <<" "<<state_point.bg.transpose()<<" "<<state_point.ba.transpose()<<" "<<state_point.grav<<" "<<feats_undistort->points.size()<<endl;
                 dump_lio_state_to_log(fp);
+
+                publish_lio_state_to_ros(pubLioState);
             }
         }
 
