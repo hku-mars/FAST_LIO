@@ -108,6 +108,6 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 install(
         # FILES
-        DIRECTORY config launch rviz_cfg msg
+        DIRECTORY config launch rviz_cfg
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
