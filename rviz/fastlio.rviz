@@ -119,15 +119,15 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 27.345218658447266
-        Min Value: 2.6603598594665527
+        Max Value: 11.062739372253418
+        Min Value: -13.864188194274902
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 255
       Color Transformer: AxisColor
-      Decay Time: 0
+      Decay Time: 30
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
@@ -138,7 +138,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.10000000149011612
+      Size (m): 0.05000000074505806
       Style: Flat Squares
       Topic:
         Depth: 5
@@ -187,8 +187,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 81.46894836425781
-        Min Value: -12.63634967803955
+        Max Value: -9999
+        Min Value: 9999
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -264,7 +264,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 476.6653747558594
+      Distance: 216.99887084960938
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

@@ -55,6 +55,7 @@
 #include <pcl/io/pcd_io.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
@@ -93,7 +94,6 @@ double filter_size_corner_min = 0, filter_size_surf_min = 0, filter_size_map_min
 double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0, lidar_end_time = 0, first_lidar_time = 0.0;
 int    effct_feat_num = 0, time_log_counter = 0, scan_count = 0, publish_count = 0;
 int    iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0, laserCloudValidNum = 0, pcd_save_interval = -1, pcd_index = 0;
-int    map_cnt = PUBFRAME_PERIOD;
 bool   point_selected_surf[100000] = {0};
 bool   lidar_pushed, flg_first_scan = true, flg_exit = false, flg_EKF_inited;
 bool   scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
@@ -484,7 +484,7 @@ void map_incremental()
     kdtree_incremental_time = omp_get_wtime() - st_time;
 }
 
-PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
+PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI());
 PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 void publish_frame_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull)
 {
@@ -513,6 +513,7 @@ void publish_frame_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::Share
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. noted that pcd save will influence the real-time performences **/
+    /*
     if (pcd_save_en)
     {
         int size = feats_undistort->points.size();
@@ -539,6 +540,7 @@ void publish_frame_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::Share
             scan_wait_num = 0;
         }
     }
+    */
 }
 
 void publish_frame_body(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull_body)
@@ -583,17 +585,12 @@ void publish_map(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub
     PointCloudXYZI::Ptr laserCloudWorld( \
                     new PointCloudXYZI(size, 1));
 
-    if (--map_cnt == 0)
+    for (int i = 0; i < size; i++)
     {
-        for (int i = 0; i < size; i++)
-        {
-            RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
-                                &laserCloudWorld->points[i]);
-        }
-        *pcl_wait_pub += *laserCloudWorld;
-        map_cnt = PUBFRAME_PERIOD;
+        RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
+                            &laserCloudWorld->points[i]);
     }
-    
+    *pcl_wait_pub += *laserCloudWorld;
 
     sensor_msgs::msg::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*pcl_wait_pub, laserCloudmsg);
@@ -607,6 +604,12 @@ void publish_map(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub
     // laserCloudMap.header.stamp = get_ros_time(lidar_end_time);
     // laserCloudMap.header.frame_id = "camera_init";
     // pubLaserCloudMap->publish(laserCloudMap);
+}
+
+void save_to_pcd()
+{
+    pcl::PCDWriter pcd_writer;
+    pcd_writer.writeBinary(map_file_path, *pcl_wait_pub);
 }
 
 template<typename T>
@@ -825,7 +828,7 @@ public:
         this->declare_parameter<bool>("feature_extract_enable", false);
         this->declare_parameter<bool>("runtime_pos_log_enable", false);
         this->declare_parameter<bool>("mapping.extrinsic_est_en", true);
-        this->declare_parameter<bool>("pcd_save/pcd_save_en", false);
+        this->declare_parameter<bool>("pcd_save.pcd_save_en", false);
         this->declare_parameter<int>("pcd_save.interval", -1);
         this->declare_parameter<vector<double>>("mapping.extrinsic_T", vector<double>());
         this->declare_parameter<vector<double>>("mapping.extrinsic_R", vector<double>());
@@ -934,6 +937,11 @@ public:
         //------------------------------------------------------------------------------------------------------
         auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(1000.0 / 100.0));
         timer_ = rclcpp::create_timer(this, this->get_clock(), period_ms, std::bind(&LaserMappingNode::timer_callback, this));
+
+        auto map_period_ms = std::chrono::milliseconds(static_cast<int64_t>(1000.0));
+        map_pub_timer_ = rclcpp::create_timer(this, this->get_clock(), map_period_ms, std::bind(&LaserMappingNode::map_publish_callback, this));
+
+        map_save_srv_ = this->create_service<std_srvs::srv::Trigger>("map_save", std::bind(&LaserMappingNode::map_save_callback, this, std::placeholders::_1, std::placeholders::_2));
 
         RCLCPP_INFO(this->get_logger(), "Node init finished.");
     }
@@ -1061,10 +1069,10 @@ private:
             
             /******* Publish points *******/
             if (path_en)                         publish_path(pubPath_);
-            if (scan_pub_en || pcd_save_en)      publish_frame_world(pubLaserCloudFull_);
+            if (scan_pub_en)      publish_frame_world(pubLaserCloudFull_);
             if (scan_pub_en && scan_body_pub_en) publish_frame_body(pubLaserCloudFull_body_);
             if (effect_pub_en) publish_effect_world(pubLaserCloudEffect_);
-            if (map_pub_en) publish_map(pubLaserCloudMap_);
+            // if (map_pub_en) publish_map(pubLaserCloudMap_);
 
             /*** Debug variables ***/
             if (runtime_pos_log)
@@ -1098,6 +1106,27 @@ private:
         }
     }
 
+    void map_publish_callback()
+    {
+        if (map_pub_en) publish_map(pubLaserCloudMap_);
+    }
+
+    void map_save_callback(std_srvs::srv::Trigger::Request::ConstSharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res)
+    {
+        RCLCPP_INFO(this->get_logger(), "Saving map to %s...", map_file_path.c_str());
+        if (pcd_save_en)
+        {
+            save_to_pcd();
+            res->success = true;
+            res->message = "Map saved.";
+        }
+        else
+        {
+            res->success = false;
+            res->message = "Map save disabled.";
+        }
+    }
+
 private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull_body_;
@@ -1111,6 +1140,8 @@ private:
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr map_pub_timer_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr map_save_srv_;
 
     bool effect_pub_en = false, map_pub_en = false;
     int effect_feat_num = 0, frame_num = 0;
