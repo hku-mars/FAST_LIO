@@ -93,6 +93,7 @@ double filter_size_corner_min = 0, filter_size_surf_min = 0, filter_size_map_min
 double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0, lidar_end_time = 0, first_lidar_time = 0.0;
 int    effct_feat_num = 0, time_log_counter = 0, scan_count = 0, publish_count = 0;
 int    iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0, laserCloudValidNum = 0, pcd_save_interval = -1, pcd_index = 0;
+int    map_cnt = PUBFRAME_PERIOD;
 bool   point_selected_surf[100000] = {0};
 bool   lidar_pushed, flg_first_scan = true, flg_exit = false, flg_EKF_inited;
 bool   scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
@@ -577,11 +578,35 @@ void publish_effect_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::Shar
 
 void publish_map(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudMap)
 {
-    sensor_msgs::msg::PointCloud2 laserCloudMap;
-    pcl::toROSMsg(*featsFromMap, laserCloudMap);
-    laserCloudMap.header.stamp = get_ros_time(lidar_end_time);
-    laserCloudMap.header.frame_id = "camera_init";
-    pubLaserCloudMap->publish(laserCloudMap);
+    PointCloudXYZI::Ptr laserCloudFullRes(dense_pub_en ? feats_undistort : feats_down_body);
+    int size = laserCloudFullRes->points.size();
+    PointCloudXYZI::Ptr laserCloudWorld( \
+                    new PointCloudXYZI(size, 1));
+
+    if (--map_cnt == 0)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            RGBpointBodyToWorld(&laserCloudFullRes->points[i], \
+                                &laserCloudWorld->points[i]);
+        }
+        *pcl_wait_pub += *laserCloudWorld;
+        map_cnt = PUBFRAME_PERIOD;
+    }
+    
+
+    sensor_msgs::msg::PointCloud2 laserCloudmsg;
+    pcl::toROSMsg(*pcl_wait_pub, laserCloudmsg);
+    // laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time);
+    laserCloudmsg.header.stamp = get_ros_time(lidar_end_time);
+    laserCloudmsg.header.frame_id = "camera_init";
+    pubLaserCloudMap->publish(laserCloudmsg);
+
+    // sensor_msgs::msg::PointCloud2 laserCloudMap;
+    // pcl::toROSMsg(*featsFromMap, laserCloudMap);
+    // laserCloudMap.header.stamp = get_ros_time(lidar_end_time);
+    // laserCloudMap.header.frame_id = "camera_init";
+    // pubLaserCloudMap->publish(laserCloudMap);
 }
 
 template<typename T>
@@ -997,7 +1022,7 @@ private:
             fout_pre<<setw(20)<<Measures.lidar_beg_time - first_lidar_time<<" "<<euler_cur.transpose()<<" "<< state_point.pos.transpose()<<" "<<ext_euler.transpose() << " "<<state_point.offset_T_L_I.transpose()<< " " << state_point.vel.transpose() \
             <<" "<<state_point.bg.transpose()<<" "<<state_point.ba.transpose()<<" "<<state_point.grav<< endl;
 
-            if(map_pub_en) // If you need to see map point, change to "if(1)"
+            if(0) // If you need to see map point, change to "if(1)"
             {
                 PointVector ().swap(ikdtree.PCL_Storage);
                 ikdtree.flatten(ikdtree.Root_Node, ikdtree.PCL_Storage, NOT_RECORD);
