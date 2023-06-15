@@ -29,7 +29,7 @@ RUN cd /tmp && \
 # COPY FAST_LIO
 COPY . /app/ws_fast_lio/src/FAST_LIO
 
-ENV ROS_PARALLEL_JOBS=2
+ENV ROS_PARALLEL_JOBS=-j1
 
 # Install Livox ROS Driver 2
 # This must be done at the end because catkin_make doesn't work here.
