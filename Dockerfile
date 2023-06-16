@@ -1,4 +1,3 @@
-ARG ROS_PARALLEL_JOBS=1
 FROM ros:noetic-perception
 
 RUN apt update && apt install -y git
@@ -30,7 +29,7 @@ RUN cd /tmp && \
 # COPY FAST_LIO
 COPY . /app/ws_fast_lio/src/FAST_LIO
 
-ENV ROS_PARALLEL_JOBS=-j$ROS_PARALLEL_JOBS
+ENV ROS_PARALLEL_JOBS=-j1
 
 RUN . /opt/ros/noetic/setup.sh && \
     cd /app/ws_fast_lio/ && \
@@ -41,5 +40,6 @@ RUN . /opt/ros/noetic/setup.sh && \
 RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git app/ws_fast_lio/src/livox_ros_driver2 && \
     cd /app/ws_fast_lio/ && \
     . /opt/ros/noetic/setup.sh && \
+    cp src/livox_ros_driver2/package_ROS1.xml src/livox_ros_driver2/package.xml && \
     catkin_make -DROS_EDITION=ROS1
 #    rm -rf /app/ws_fast_lio/build/
