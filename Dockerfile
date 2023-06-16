@@ -26,20 +26,16 @@ RUN cd /tmp && \
     make install && \
     rm -rf /tmp/Livox-SDK2
 
-# COPY FAST_LIO
-COPY . /app/ws_fast_lio/src/FAST_LIO
-
-ENV ROS_PARALLEL_JOBS=-j1
-
-RUN . /opt/ros/noetic/setup.sh && \
-    cd /app/ws_fast_lio/ && \
-    catkin_make
-
 # Install Livox ROS Driver 2
-# This must be done at the end because catkin_make doesn't work here.
 RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git app/ws_fast_lio/src/livox_ros_driver2 && \
     cd /app/ws_fast_lio/ && \
     . /opt/ros/noetic/setup.sh && \
     cp src/livox_ros_driver2/package_ROS1.xml src/livox_ros_driver2/package.xml && \
-    catkin_make -DROS_EDITION=ROS1
-#    rm -rf /app/ws_fast_lio/build/
+    catkin_make -j2 -DROS_EDITION=ROS1
+
+# COPY FAST_LIO
+COPY . /app/ws_fast_lio/src/FAST_LIO
+
+RUN cd /app/ws_fast_lio/ && \
+    . /opt/ros/noetic/setup.sh && \
+    catkin_make -j1 -DROS_EDITION=ROS1
