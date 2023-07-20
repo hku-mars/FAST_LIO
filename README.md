@@ -86,8 +86,8 @@ Follow [livox_ros_driver2 Installation](https://github.com/Livox-SDK/livox_ros_d
 Clone the repository and colcon build:
 
 ```bash
-    cd <ros2_ws>
-    git --recursive clone https://github.com/hku-mars/FAST_LIO.git
+    cd <ros2_ws>/src
+    git clone https://github.com/hku-mars/FAST_LIO.git --recursive 
     cd ..
     colcon build --symlink-install
     . ./install/setup.bash # use setup.zsh if use zsh
