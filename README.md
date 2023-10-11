@@ -171,7 +171,7 @@ Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global
 <img src="doc/results/HKU_LG_Indoor.png" width=47% />
 <img src="doc/results/HKU_MB_002.png" width = 51% >
 
-Files: Can be downloaded from [google drive](https://drive.google.com/drive/folders/1YL5MQVYgAM8oAWUm7e3OGXZBPKkanmY1?usp=sharing)
+Files: Can be downloaded from [google drive](https://drive.google.com/drive/folders/1nmlvMBBXPFmH0EeeZ4v85aIwwZt5szWp?usp=sharing)
 
 Run:
 ```
