@@ -81,6 +81,58 @@ Follow [livox_ros_driver Installation](https://github.com/Livox-SDK/livox_ros_dr
 
 
 ## 2. Build
+If you want to use docker conatiner to run fastlio2, please install the docker on you machine.
+Follow [Docker Installation](https://docs.docker.com/engine/install/ubuntu/).
+### 2.1 Docker Container
+User can create a new script with anyname by the following command in linux:
+```
+touch <your_custom_name>.sh
+```
+Place the following code inside the ``` <your_custom_name>.sh ``` script.
+```
+#!/bin/bash
+mkdir docker_ws
+# Script to run ROS Kinetic with GUI support in Docker
+
+# Allow X server to be accessed from the local machine
+xhost +local:
+
+# Container name
+CONTAINER_NAME="fastlio2"
+
+# Run the Docker container
+docker run -itd \
+  --name=$CONTAINER_NAME \
+  --user mars_ugv \
+  --network host \
+  --ipc=host \
+  -v /home/$USER/docker_ws:/home/mars_ugv/docker_ws \
+  --privileged \
+  --env="QT_X11_NO_MITSHM=1" \
+  --volume="/etc/localtime:/etc/localtime:ro" \
+  -v /dev/bus/usb:/dev/bus/usb \
+  --device=/dev/dri \
+  --group-add video \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  --env="DISPLAY=$DISPLAY" \
+  kenny0407/marslab_fastlio2:latest \
+  /bin/bash
+```
+execute the following command to grant execute permissions to the script, making it runnable:
+```
+sudo chmod +x <your_custom_name>.sh
+```
+execute the following command to download the image and create the container.
+```
+./<your_custom_name>.sh
+```
+
+*Script explanation:*
+- The docker run command provided below creates a container with a tag, using an image from Docker Hub. The download duration for this image can differ depending on the user's network speed.
+- This command also establishes a new workspace called ``` docker_ws ```, which serves as a shared folder between the Docker container and the host machine. This means that if users wish to run the rosbag example, they need to download the rosbag file and place it in the ``` docker_ws ``` directory on their host machine.
+- Subsequently, a folder with the same name inside the Docker container will receive this file. Users can then easily play the file within Docker.
+- In this example, we've shared the network of the host machine with the Docker container. Consequently, if users execute the ``` rostopic list ``` command, they will observe identical output whether they run it on the host machine or inside the Docker container."
+### 2.2 Build from source
 Clone the repository and catkin_make:
 
 ```
