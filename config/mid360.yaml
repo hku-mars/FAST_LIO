@@ -1,6 +1,14 @@
 /**:
     ros__parameters:
+        feature_extract_enable: false
+        point_filter_num: 3
+        max_iteration: 3
+        filter_size_surf: 0.5
+        filter_size_map: 0.5
+        cube_side_length: 1000.0
+        runtime_pos_log_enable: false
         map_file_path: "./test.pcd"
+
         common:
             lid_topic:  "/livox/lidar"
             imu_topic:  "/livox/imu"
