@@ -67,10 +67,12 @@
 
 The **default from apt** PCL and Eigen is enough for FAST-LIO to work normally.
 
+For PCL, if the default from apt `libpcl-dev` doesn't work for you, try to install `pcl_ros` with `sudo apt install ros-<ros2-distro>-pcl-ros` instead.
+
 ROS >= Foxy (Recommend to use ROS-Humble). [ROS Installation](https://docs.ros.org/en/humble/Installation.html)
 
 ### 1.2. **PCL && Eigen**
-PCL    >= 1.8,   Follow [PCL Installation](http://www.pointclouds.org/downloads/linux.html).
+PCL    >= 1.8,   Follow [PCL Installation](https://pointclouds.org/downloads/#linux).
 
 Eigen  >= 3.3.4, Follow [Eigen Installation](http://eigen.tuxfamily.org/index.php?title=Main_Page).
 
