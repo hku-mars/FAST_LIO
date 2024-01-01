@@ -67,8 +67,6 @@
 
 The **default from apt** PCL and Eigen is enough for FAST-LIO to work normally.
 
-For PCL, if the default from apt `libpcl-dev` doesn't work for you, try to install `pcl_ros` with `sudo apt install ros-<ros2-distro>-pcl-ros` instead.
-
 ROS >= Foxy (Recommend to use ROS-Humble). [ROS Installation](https://docs.ros.org/en/humble/Installation.html)
 
 ### 1.2. **PCL && Eigen**
@@ -93,6 +91,7 @@ Clone the repository and colcon build:
     cd <ros2_ws>/src # cd into a ros2 workspace folder
     git clone https://github.com/Ericsii/FAST_LIO.git --recursive
     cd ..
+    rosdep install --from-paths src --ignore-src -y
     colcon build --symlink-install
     . ./install/setup.bash # use setup.zsh if use zsh
 ```
