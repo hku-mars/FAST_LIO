@@ -60,6 +60,16 @@
 #include "preprocess.h"
 #include <ikd-Tree/ikd_Tree.h>
 
+#include <sensor_msgs/Image.h>
+#include <pcl_ros/point_cloud.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <Eigen/Core>
+#include <deque>
+#include <vector>
+#include <pcl/impl/point_types.hpp>
+
 #define INIT_TIME           (0.1)
 #define LASER_POINT_COV     (0.001)
 #define MAXN                (720000)
@@ -83,9 +93,12 @@ condition_variable sig_buffer;
 
 string root_dir = ROOT_DIR;
 string map_file_path, lid_topic, imu_topic;
+string img_topic; //new
 
 double res_mean_last = 0.05, total_residual = 0.0;
 double last_timestamp_lidar = 0, last_timestamp_imu = -1.0;
+double lasttimestamp_camera=-1; //new
+
 double gyr_cov = 0.1, acc_cov = 0.1, b_gyr_cov = 0.0001, b_acc_cov = 0.0001;
 double filter_size_corner_min = 0, filter_size_surf_min = 0, filter_size_map_min = 0, fov_deg = 0;
 double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0, lidar_end_time = 0, first_lidar_time = 0.0;
@@ -103,6 +116,7 @@ vector<double>       extrinR(9, 0.0);
 deque<double>                     time_buffer;
 deque<PointCloudXYZI::Ptr>        lidar_buffer;
 deque<sensor_msgs::Imu::ConstPtr> imu_buffer;
+deque<cv::Mat>                    image_buffer; //new
 
 PointCloudXYZI::Ptr featsFromMap(new PointCloudXYZI());
 PointCloudXYZI::Ptr feats_undistort(new PointCloudXYZI());
@@ -218,6 +232,91 @@ void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
     po->intensity = pi->intensity;
 }
 
+void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
+{
+    Eigen::Matrix4d extrinsic_matrix;
+    extrinsic_matrix<< 0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
+           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
+           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+           0, 0, 0, 1;
+    Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
+    Eigen::Vector4d c_body;
+    c_body = extrinsic_matrix*p_body;
+
+    po->x=c_body(0);
+    po->y=c_body(1);
+    po->z=c_body(2);
+    po->intensity=pi->intensity;
+
+}
+
+void Camera_to_IMU(pcl::PointXYZRGB& pi, pcl::PointXYZRGB& po)
+{
+    Eigen::Matrix4d extrinsic_matrix;
+    extrinsic_matrix<< 0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
+           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
+           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+           0, 0, 0, 1;
+
+    Eigen::Matrix4d inverse_extrinsic = extrinsic_matrix.inverse();
+
+    Eigen::Vector4d c_body(pi.x, pi.y, pi.z, 1.0);
+    Eigen::Vector4d b_body;
+    b_body=inverse_extrinsic*c_body;
+
+    po.x=b_body(0);
+    po.y=b_body(1);
+    po.z=b_body(2);
+    po.r=pi.r;
+    po.g=pi.g;
+    po.b=pi.b;
+      
+}
+
+void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB& po)
+{
+    Eigen::Matrix4d camera_projection_matrix;
+    double gamma1 = 2.1387619122017772e+03;
+    double gamma2 = 2.1315886210259278e+03;
+    double u0 = 3.6119856633263799e+02;
+    double v0 = 2.4827644773395667e+02;
+    
+    
+    camera_projection_matrix<< gamma1, 0, u0, 0, 
+                                0, gamma2, v0, 0,
+                                0, 0, 1, 0;    
+
+
+    Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
+    V3D c_body(camera_projection_matrix*p_body);
+
+    double homo =1.0/c_body(2);      
+
+    double x_coord = c_body(0)*homo;
+    double y_coord = c_body(1)*homo;
+
+    int u=static_cast<int>(x_coord);
+    int v=static_cast<int>(y_coord);
+
+    double alpha = x_coord-u;
+    double beta  = y_coord-v; 
+
+    if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
+    {
+        cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
+        po.r = static_cast<int>(pixel[2]);
+        po.g = static_cast<int>(pixel[1]);
+        po.b = static_cast<int>(pixel[0]);
+    }
+
+    po.x=pi->x;
+    po.y=pi->y;
+    po.z=pi->z;
+                          
+}
+
+
+
 void points_cache_collect()
 {
     PointVector points_history;
@@ -330,6 +429,30 @@ void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg)
     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
     mtx_buffer.unlock();
     sig_buffer.notify_all();
+}
+
+
+void image_cbk(const sensor_msgs::CompressedImagePtr & img_msg)
+{   
+    double time_imagestamp=img_msg->header.stamp.toSec();
+    if(time_imagestamp<lasttimestamp_camera)
+    {
+        ROS_WARN("Camera loop back, clear buffer");
+        image_buffer.clear();
+    }
+    lasttimestamp_camera=time_imagestamp;
+
+    mtx_buffer.lock();
+    cv_bridge::CvImagePtr ptr;
+    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
+    ptr->header.stamp.fromSec(time_imagestamp);
+    cv::Mat primage = ptr->image;
+
+    image_buffer.push_back(primage);
+
+    mtx_buffer.unlock();
+    sig_buffer.notify_all();
+
 }
 
 void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) 
@@ -528,12 +651,21 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
 {
     int size = feats_undistort->points.size();
     PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
+    PointCloudXYZI::Ptr laserCloudCAMERABody(new PointCloudXYZI(size, 1));
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    colorcloud->points.reserve(size);
+    colorlidarcloud->points.reserve(size);
 
     for (int i = 0; i < size; i++)
     {
         RGBpointBodyLidarToIMU(&feats_undistort->points[i], \
                             &laserCloudIMUBody->points[i]);
+        IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
+        projection(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
+        Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
     }
+    image_buffer.pop_front();
 
     sensor_msgs::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*laserCloudIMUBody, laserCloudmsg);
@@ -761,6 +893,7 @@ int main(int argc, char** argv)
     nh.param<string>("map_file_path",map_file_path,"");
     nh.param<string>("common/lid_topic",lid_topic,"/livox/lidar");
     nh.param<string>("common/imu_topic", imu_topic,"/livox/imu");
+    nh.param<string>("common/img_topic",img_topic, "/cam0/compressed");
     nh.param<bool>("common/time_sync_en", time_sync_en, false);
     nh.param<double>("common/time_offset_lidar_to_imu", time_diff_lidar_to_imu, 0.0);
     nh.param<double>("filter_size_corner",filter_size_corner_min,0.5);
@@ -839,6 +972,7 @@ int main(int argc, char** argv)
         nh.subscribe(lid_topic, 200000, livox_pcl_cbk) : \
         nh.subscribe(lid_topic, 200000, standard_pcl_cbk);
     ros::Subscriber sub_imu = nh.subscribe(imu_topic, 200000, imu_cbk);
+    ros::Subscriber sub_image = nh.subscribe(img_topic,200000, image_cbk );
     ros::Publisher pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>
             ("/cloud_registered", 100000);
     ros::Publisher pubLaserCloudFull_body = nh.advertise<sensor_msgs::PointCloud2>
@@ -851,6 +985,7 @@ int main(int argc, char** argv)
             ("/Odometry", 100000);
     ros::Publisher pubPath          = nh.advertise<nav_msgs::Path> 
             ("/path", 100000);
+    
 //------------------------------------------------------------------------------------------------------
     signal(SIGINT, SigHandle);
     ros::Rate rate(5000);
