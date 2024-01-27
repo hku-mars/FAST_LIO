@@ -250,7 +250,7 @@ void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 
 }
 
-void Camera_to_IMU(pcl::PointXYZRGB& pi, pcl::PointXYZRGB& po)
+void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
 {
     Eigen::Matrix4d extrinsic_matrix;
     extrinsic_matrix<< 0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
@@ -260,22 +260,22 @@ void Camera_to_IMU(pcl::PointXYZRGB& pi, pcl::PointXYZRGB& po)
 
     Eigen::Matrix4d inverse_extrinsic = extrinsic_matrix.inverse();
 
-    Eigen::Vector4d c_body(pi.x, pi.y, pi.z, 1.0);
+    Eigen::Vector4d c_body(pi->x, pi->y, pi->z, 1.0);
     Eigen::Vector4d b_body;
     b_body=inverse_extrinsic*c_body;
 
-    po.x=b_body(0);
-    po.y=b_body(1);
-    po.z=b_body(2);
-    po.r=pi.r;
-    po.g=pi.g;
-    po.b=pi.b;
+    po->x=b_body(0);
+    po->y=b_body(1);
+    po->z=b_body(2);
+    po->r=pi->r;
+    po->g=pi->g;
+    po->b=pi->b;
       
 }
 
-void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB& po)
+void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 {
-    Eigen::Matrix4d camera_projection_matrix;
+    Eigen::MatrixXd camera_projection_matrix(3,4);
     double gamma1 = 2.1387619122017772e+03;
     double gamma2 = 2.1315886210259278e+03;
     double u0 = 3.6119856633263799e+02;
@@ -288,7 +288,7 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB& po)
 
 
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
-    V3D c_body(camera_projection_matrix*p_body);
+    Eigen::Vector3d c_body(camera_projection_matrix*p_body);
 
     double homo =1.0/c_body(2);      
 
@@ -304,14 +304,14 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB& po)
     if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
     {
         cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
-        po.r = static_cast<int>(pixel[2]);
-        po.g = static_cast<int>(pixel[1]);
-        po.b = static_cast<int>(pixel[0]);
+        po->r = static_cast<int>(pixel[2]);
+        po->g = static_cast<int>(pixel[1]);
+        po->b = static_cast<int>(pixel[0]);
     }
 
-    po.x=pi->x;
-    po.y=pi->y;
-    po.z=pi->z;
+    po->x=pi->x;
+    po->y=pi->y;
+    po->z=pi->z;
                           
 }
 
@@ -663,12 +663,19 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
                             &laserCloudIMUBody->points[i]);
         IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
         projection(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
-        Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
+        //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
+        colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
+        colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
+        colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
+        colorlidarcloud->points[i].r=colorcloud->points[i].r;
+        colorlidarcloud->points[i].g=colorcloud->points[i].g;
+        colorlidarcloud->points[i].b=colorcloud->points[i].b;
+       
     }
     image_buffer.pop_front();
 
     sensor_msgs::PointCloud2 laserCloudmsg;
-    pcl::toROSMsg(*laserCloudIMUBody, laserCloudmsg);
+    pcl::toROSMsg(*colorlidarcloud, laserCloudmsg);
     laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time);
     laserCloudmsg.header.frame_id = "body";
     pubLaserCloudFull_body.publish(laserCloudmsg);
