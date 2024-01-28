@@ -318,6 +318,10 @@ void projection_second(PointType const * const pi, cv::Mat image, pcl::PointXYZR
         po->b = 0;
     }
 
+    po->x=pi->x;
+    po->y=pi->y;
+    po->z=pi->z;
+
 }
 
 void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
@@ -712,15 +716,15 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
                             &laserCloudIMUBody->points[i]);
         IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
         projection_second(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
-        //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
-        
+        Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
+        /*
         colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
         colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
         colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
         colorlidarcloud->points[i].r=colorcloud->points[i].r;
         colorlidarcloud->points[i].g=colorcloud->points[i].g;
         colorlidarcloud->points[i].b=colorcloud->points[i].b;
-        
+        */
         /*uint8_t solor= 255;
         uint8_t ssolar=165;
         uint8_t sssolar= 0; 
