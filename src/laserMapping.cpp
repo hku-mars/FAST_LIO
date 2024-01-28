@@ -273,8 +273,59 @@ void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
       
 }
 
-void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
+void projection_second(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 {
+    //camera distortion matrix
+    double k1= 1.1757726639872075e+00;
+    double k2= 1.5491281051140213e+01;
+    double p1= -8.1237172954550494e-04;
+    double p2= 6.7297684030310243e-04;
+    cv::Mat distortion_coeffs = (cv::Mat_<double>(1,4) << k1, k2, p1, p2);
+
+    //camera procjection matrix
+    double gamma1 = 2.1387619122017772e+03;
+    double gamma2 = 2.1315886210259278e+03;
+    double u0 = 3.6119856633263799e+02;
+    double v0 = 2.4827644773395667e+02;
+    cv::Mat camera_matrix = (cv::Mat_<double>(3,3) << gamma1, 0, u0, 0, gamma2, v0, 0, 0, 1);
+
+    //3d coord
+    double cx =pi->x;
+    double cy= pi->y;
+    double cz =pi->z;
+    cv::Mat object_points = (cv::Mat_<double>(1,3) << cx, cy, cz);
+
+    //2d projcetion
+    cv::Mat image_points;
+    cv::projectPoints(object_points, cv::Vec3d(0, 0, 0), cv::Vec3d(0, 0, 0), camera_matrix, distortion_coeffs, image_points);
+
+    // Extract 2D image coordinates
+    cv::Point2f image_coord = image_points.at<cv::Point2f>(0, 0);
+
+    // Ensure the coordinates are within the image bounds
+    if (image_coord.x >= 0 && image_coord.x < image.cols && image_coord.y >= 0 && image_coord.y < image.rows) {
+        // Access the pixel value at the computed 2D coordinates
+        cv::Vec3b color = image.at<cv::Vec3b>(cv::Point(image_coord.x, image_coord.y));
+
+        // Assign the color values to the output point cloud
+        po->r = color[2];
+        po->g = color[1];
+        po->b = color[0];
+    } else {
+        // Handle the case where the computed 2D coordinates are outside the image bounds
+        po->r = 0;
+        po->g = 0;
+        po->b = 0;
+    }
+
+}
+
+void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
+{   
+    //camera distortion matrix
+
+
+    //camera procjection matrix
     Eigen::MatrixXd camera_projection_matrix(3,4);
     double gamma1 = 2.1387619122017772e+03;
     double gamma2 = 2.1315886210259278e+03;
@@ -304,9 +355,9 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
     {
         cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
-        po->r = static_cast<int>(pixel[2]);
-        po->g = static_cast<int>(pixel[1]);
-        po->b = static_cast<int>(pixel[0]);
+        po->r = static_cast<uint8_t>(pixel[2]);
+        po->g = static_cast<uint8_t>(pixel[1]);
+        po->b = static_cast<uint8_t>(pixel[0]);
     }
 
     po->x=pi->x;
@@ -652,24 +703,30 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
     int size = feats_undistort->points.size();
     PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
     PointCloudXYZI::Ptr laserCloudCAMERABody(new PointCloudXYZI(size, 1));
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    colorcloud->points.reserve(size);
-    colorlidarcloud->points.reserve(size);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorcloud(new pcl::PointCloud<pcl::PointXYZRGB>(size,1));
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>(size,1));
 
     for (int i = 0; i < size; i++)
     {
         RGBpointBodyLidarToIMU(&feats_undistort->points[i], \
                             &laserCloudIMUBody->points[i]);
         IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
-        projection(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
+        projection_second(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
         //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
+        
         colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
         colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
         colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
         colorlidarcloud->points[i].r=colorcloud->points[i].r;
         colorlidarcloud->points[i].g=colorcloud->points[i].g;
         colorlidarcloud->points[i].b=colorcloud->points[i].b;
+        
+        /*uint8_t solor= 255;
+        uint8_t ssolar=165;
+        uint8_t sssolar= 0; 
+        colorlidarcloud->points[i].r=solor;
+        colorlidarcloud->points[i].g=ssolar;
+        colorlidarcloud->points[i].b=sssolar;*/
        
     }
     image_buffer.pop_front();
