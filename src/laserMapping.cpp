@@ -235,10 +235,10 @@ void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
 void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 {
     Eigen::Matrix4d extrinsic_matrix;
-    extrinsic_matrix<< 0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
-           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
-           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
-           0, 0, 0, 1;
+    extrinsic_matrix<< 1.0, 0.0, 0.0, -0.071,
+           0.0, 0.0, 1.0,  0.03421,
+           0.0, -1.0, 0.0, 0.01512,
+           0.0, 0.0, 0.0, 1.0;
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
     Eigen::Vector4d c_body;
     c_body = extrinsic_matrix*p_body;
@@ -253,11 +253,18 @@ void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
 {
     Eigen::Matrix4d extrinsic_matrix;
-    extrinsic_matrix<< 0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
-           0.999557249008, 0.0149672133247, 0.025715529948,  -0.064676986768,
-           -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
-           0, 0, 0, 1;
+    /*
+    extrinsic_matrix<< -0.00113207, 0.0158688, 0.999873, 0.050166,
+            -0.9999999,  -0.000486594, -0.00113994, 0.0474116,
+            0.000504622,  -0.999874,  -0.0158682, -0.0312415;
+    /*
 
+    */
+    extrinsic_matrix<< 1.0, 0.0, 0.0, -0.071,
+           0.0, 0.0, 1.0,  0.03421,
+           0.0, -1.0, 0.0, 0.01512,
+           0.0, 0.0, 0.0, 1.0;
+    
     Eigen::Matrix4d inverse_extrinsic = extrinsic_matrix.inverse();
 
     Eigen::Vector4d c_body(pi->x, pi->y, pi->z, 1.0);
@@ -276,36 +283,40 @@ void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
 void projection_second(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 {
     //camera distortion matrix
-    double k1= 1.1757726639872075e+00;
-    double k2= 1.5491281051140213e+01;
-    double p1= -8.1237172954550494e-04;
-    double p2= 6.7297684030310243e-04;
+    double k1 = -0.35866339052162377;
+    double k2 = 0.14886143788297318;
+    double p1 = 0.0002815532809810967;
+    double p2 = 0.00040207936847531234;
     cv::Mat distortion_coeffs = (cv::Mat_<double>(1,4) << k1, k2, p1, p2);
 
     //camera procjection matrix
-    double gamma1 = 2.1387619122017772e+03;
-    double gamma2 = 2.1315886210259278e+03;
-    double u0 = 3.6119856633263799e+02;
-    double v0 = 2.4827644773395667e+02;
+    double gamma1 = 731.2592265895066;
+    double gamma2 = 730.07196860144;
+    double u0 = 630.2460232287447;
+    double v0 = 353.5411952863725;
     cv::Mat camera_matrix = (cv::Mat_<double>(3,3) << gamma1, 0, u0, 0, gamma2, v0, 0, 0, 1);
 
     //3d coord
     double cx =pi->x;
     double cy= pi->y;
     double cz =pi->z;
-    cv::Mat object_points = (cv::Mat_<double>(1,3) << cx, cy, cz);
+    std::vector<cv::Point3f> object_points;
+    object_points.push_back(cv::Point3f(cx,cy,cz));
 
     //2d projcetion
-    cv::Mat image_points;
-    cv::projectPoints(object_points, cv::Vec3d(0, 0, 0), cv::Vec3d(0, 0, 0), camera_matrix, distortion_coeffs, image_points);
+    std::vector<cv::Point2f> image_points;
+    cv::Mat rvec = (cv::Mat_<double>(3, 1) << 0, 0, 0);
+    cv::Mat tvec = (cv::Mat_<double>(3, 1) << 0, 0, 0);
+    cv::projectPoints(object_points, rvec, tvec, camera_matrix, distortion_coeffs, image_points);
 
     // Extract 2D image coordinates
-    cv::Point2f image_coord = image_points.at<cv::Point2f>(0, 0);
+    int x = static_cast<int>(image_points[0].x);
+    int y = static_cast<int>(image_points[0].y);
 
     // Ensure the coordinates are within the image bounds
-    if (image_coord.x >= 0 && image_coord.x < image.cols && image_coord.y >= 0 && image_coord.y < image.rows) {
+    if (x >= 0 && x < image.cols && y >= 0 && y < image.rows) {
         // Access the pixel value at the computed 2D coordinates
-        cv::Vec3b color = image.at<cv::Vec3b>(cv::Point(image_coord.x, image_coord.y));
+        cv::Vec3b color = image.at<cv::Vec3b>(cv::Point(y, x));
 
         // Assign the color values to the output point cloud
         po->r = color[2];
@@ -313,9 +324,9 @@ void projection_second(PointType const * const pi, cv::Mat image, pcl::PointXYZR
         po->b = color[0];
     } else {
         // Handle the case where the computed 2D coordinates are outside the image bounds
-        po->r = 0;
-        po->g = 0;
-        po->b = 0;
+        po->r = image.at<cv::Vec3b>(cv::Point(20,20))[2];
+        po->g = image.at<cv::Vec3b>(cv::Point(20,20))[1];
+        po->b = image.at<cv::Vec3b>(cv::Point(20,20))[0];
     }
 
     po->x=pi->x;
@@ -327,14 +338,17 @@ void projection_second(PointType const * const pi, cv::Mat image, pcl::PointXYZR
 void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 {   
     //camera distortion matrix
-
+    double k1 = -0.35866339052162377;
+    double k2 = 0.14886143788297318;
+    double p1 = 0.0002815532809810967;
+    double p2 = 0.00040207936847531234;
 
     //camera procjection matrix
     Eigen::MatrixXd camera_projection_matrix(3,4);
-    double gamma1 = 2.1387619122017772e+03;
-    double gamma2 = 2.1315886210259278e+03;
-    double u0 = 3.6119856633263799e+02;
-    double v0 = 2.4827644773395667e+02;
+    double gamma1 = 731.2592265895066;
+    double gamma2 = 730.07196860144;
+    double u0 = 630.2460232287447;
+    double v0 = 353.5411952863725;
     
     
     camera_projection_matrix<< gamma1, 0, u0, 0, 
@@ -344,6 +358,13 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
     Eigen::Vector3d c_body(camera_projection_matrix*p_body);
+
+    if(c_body(2)<0)
+    {
+        po->r = 0;
+        po->g = 0; 
+        po->b = 0;  
+    }
 
     double homo =1.0/c_body(2);      
 
@@ -362,6 +383,11 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
         po->r = static_cast<uint8_t>(pixel[2]);
         po->g = static_cast<uint8_t>(pixel[1]);
         po->b = static_cast<uint8_t>(pixel[0]);
+    } else {
+        // Handle the case where the computed 2D coordinates are outside the image bounds
+        po->r = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[2];
+        po->g = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[1];
+        po->b = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[0];
     }
 
     po->x=pi->x;
@@ -715,16 +741,20 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
         RGBpointBodyLidarToIMU(&feats_undistort->points[i], \
                             &laserCloudIMUBody->points[i]);
         IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
-        projection_second(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
-        Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
-        /*
+        if(image_buffer.empty()==true)
+        {
+            ROS_WARN("image buffer is empty");
+        }
+        projection(&laserCloudCAMERABody->points[i], image_buffer.front(), &colorcloud->points[i]);
+        //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
+        
         colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
         colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
         colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
         colorlidarcloud->points[i].r=colorcloud->points[i].r;
         colorlidarcloud->points[i].g=colorcloud->points[i].g;
         colorlidarcloud->points[i].b=colorcloud->points[i].b;
-        */
+        
         /*uint8_t solor= 255;
         uint8_t ssolar=165;
         uint8_t sssolar= 0; 
@@ -961,7 +991,7 @@ int main(int argc, char** argv)
     nh.param<string>("map_file_path",map_file_path,"");
     nh.param<string>("common/lid_topic",lid_topic,"/livox/lidar");
     nh.param<string>("common/imu_topic", imu_topic,"/livox/imu");
-    nh.param<string>("common/img_topic",img_topic, "/cam0/compressed");
+    //nh.param<string>("common/img_topic",img_topic, "/cam0/compressed");
     nh.param<bool>("common/time_sync_en", time_sync_en, false);
     nh.param<double>("common/time_offset_lidar_to_imu", time_diff_lidar_to_imu, 0.0);
     nh.param<double>("filter_size_corner",filter_size_corner_min,0.5);
@@ -1040,7 +1070,7 @@ int main(int argc, char** argv)
         nh.subscribe(lid_topic, 200000, livox_pcl_cbk) : \
         nh.subscribe(lid_topic, 200000, standard_pcl_cbk);
     ros::Subscriber sub_imu = nh.subscribe(imu_topic, 200000, imu_cbk);
-    ros::Subscriber sub_image = nh.subscribe(img_topic,200000, image_cbk );
+    ros::Subscriber sub_image = nh.subscribe("/cam0/compressed",200000, image_cbk );
     ros::Publisher pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>
             ("/cloud_registered", 100000);
     ros::Publisher pubLaserCloudFull_body = nh.advertise<sensor_msgs::PointCloud2>
