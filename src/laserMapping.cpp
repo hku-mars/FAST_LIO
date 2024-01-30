@@ -279,8 +279,12 @@ void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
       
 }
 
-void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
+int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 {   
+    po->x=pi->x;
+    po->y=pi->y;
+    po->z=pi->z;
+
     //camera distortion matrix
     double k1 = -0.35866339052162377;
     double k2 = 0.14886143788297318;
@@ -302,12 +306,10 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
                                 0, gamma2, v0, 0,
                                 0, 0, 1, 0;    
 
-
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
     Eigen::Vector3d c_body(camera_projection_matrix*p_body);
 
-
-
+    //homography
     double homo =1.0/c_body(2);      
 
     double x_coord = c_body(0)*homo;
@@ -324,14 +326,43 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     int v = static_cast<int>(undistorted(1));*/
 
     
-
     int u=static_cast<int>(x_coord);
     int v=static_cast<int>(y_coord);
 
-    //double alpha = x_coord-u;
-    //double beta  = y_coord-v; 
+    //now interpolating starts!!!
+    double alpha = x_coord-u;
+    double beta  = y_coord-v;
 
-    if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
+    int u_floor = static_cast<int>(std::floor(x_coord));
+    int v_floor = static_cast<int>(std::floor(y_coord));
+
+    int u_ceil = static_cast<int>(std::ceil(x_coord));
+    int v_ceil = static_cast<int>(std::ceil(y_coord));   
+
+    if (u_floor >= 0 && u_ceil < image.cols && v_floor >= 0 && v_ceil < image.rows)
+    {
+        // Bilinear interpolation
+        cv::Vec3b pixel1 = (1 - alpha) * (1 - beta) * image.at<cv::Vec3b>(v_floor, u_floor);
+        cv::Vec3b pixel2 = alpha * (1 - beta) * image.at<cv::Vec3b>(v_floor, u_ceil);
+        cv::Vec3b pixel3 = (1 - alpha) * beta * image.at<cv::Vec3b>(v_ceil, u_floor);
+        cv::Vec3b pixel4 = alpha * beta * image.at<cv::Vec3b>(v_ceil, u_ceil);
+
+        cv::Vec3b interpolated_pixel = pixel1 + pixel2 + pixel3 + pixel4;
+
+        po->r = static_cast<uint8_t>(interpolated_pixel[2]);
+        po->g = static_cast<uint8_t>(interpolated_pixel[1]);
+        po->b = static_cast<uint8_t>(interpolated_pixel[0]);
+    }
+    else
+    {
+        // Handle the case where the computed 2D coordinates are outside the image bounds
+        po->r = 0; 
+        po->g = 0;
+        po->b = 0;
+        return 0;
+    }
+
+    /*if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
     {
         cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
         po->r = static_cast<uint8_t>(pixel[2]);
@@ -339,22 +370,22 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
         po->b = static_cast<uint8_t>(pixel[0]);
     } else {
         // Handle the case where the computed 2D coordinates are outside the image bounds
-        po->r = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[2];
+        po->r = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[2]; //->just for test
         po->g = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[1];
         po->b = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[0];
-    }
-
-    po->x=pi->x;
-    po->y=pi->y;
-    po->z=pi->z;
+        return 0;
+    }*/
 
     if(c_body(2)>0)
-    {
+    {          
+        // Handle the case where the point is behind the camera
         po->r = 0;
         po->g = 0; 
         po->b = 0; 
+
+        return 0;
     }
-                          
+    return 1;              
 }
 
 
@@ -715,7 +746,7 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
     PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
     PointCloudXYZI::Ptr laserCloudCAMERABody(new PointCloudXYZI(size, 1));
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorcloud(new pcl::PointCloud<pcl::PointXYZRGB>(size,1));
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>(size,1));
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>());
 
     for (int i = 0; i < size; i++)
     {
@@ -726,23 +757,26 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
         {
             ROS_WARN("image buffer is empty");
         }
-        projection(&laserCloudCAMERABody->points[i], img_process_mat.front(), &colorcloud->points[i]);
+        if(projection(&laserCloudCAMERABody->points[i], img_process_mat.front(), &colorcloud->points[i]))
+        {
+            pcl::PointXYZRGB validPoint;
+            validPoint.x = laserCloudIMUBody->points[i].x;
+            validPoint.y = laserCloudIMUBody->points[i].y;
+            validPoint.z = laserCloudIMUBody->points[i].z;
+            validPoint.r = colorcloud->points[i].r;
+            validPoint.g = colorcloud->points[i].g;
+            validPoint.b = colorcloud->points[i].b;
+            colorlidarcloud->points.push_back(validPoint);       
+        }
         //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
-        
+        /*
         colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
         colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
         colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
         colorlidarcloud->points[i].r=colorcloud->points[i].r;
         colorlidarcloud->points[i].g=colorcloud->points[i].g;
-        colorlidarcloud->points[i].b=colorcloud->points[i].b;
-        
-        /*uint8_t solor= 255;
-        uint8_t ssolar=165;
-        uint8_t sssolar= 0; 
-        colorlidarcloud->points[i].r=solor;
-        colorlidarcloud->points[i].g=ssolar;
-        colorlidarcloud->points[i].b=sssolar;*/
-       
+        colorlidarcloud->points[i].b=colorcloud->points[i].b;*/
+              
     }
     img_process_mat.pop_front();
 
