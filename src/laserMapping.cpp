@@ -315,20 +315,21 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
 
 
     /*//applyting distortion matrix
-    std::vector<cv::Point2d> inputPoints;
-    inputPoints.push_back(cv::Point2d(x_coord, y_coord));
-    std::vector<cv::Point2d> outputPoints;
+    Eigen::Vector2d distorted_coords(x_coord, y_coord);
+    cv::Mat distorted = (cv::Mat_<double>(1, 2) << distorted_coords(0), distorted_coords(1));
+    cv::undistortPoints(distorted, distorted, cv::Mat::eye(3, 3, CV_64F), distortionMatrix);
+    Eigen::Vector2d undistorted(distorted.at<double>(0, 0), distorted.at<double>(0, 1));
+    
+    int u = static_cast<int>(undistorted(0));
+    int v = static_cast<int>(undistorted(1));*/
 
-    cv::undistortPoints(inputPoints, outputPoints, cv::Mat::eye(3, 3, CV_64F), distortionMatrix, cv::Mat(), cv::noArray());
+    
 
-    int u=static_cast<int>(outputPoints[0].x);
-    int v=static_cast<int>(outputPoints[0].y);
-*/
     int u=static_cast<int>(x_coord);
     int v=static_cast<int>(y_coord);
 
-    double alpha = x_coord-u;
-    double beta  = y_coord-v; 
+    //double alpha = x_coord-u;
+    //double beta  = y_coord-v; 
 
     if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
     {
@@ -355,7 +356,6 @@ void projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     }
                           
 }
-
 
 
 void points_cache_collect()
@@ -1130,7 +1130,7 @@ int main(int argc, char** argv)
             int featsFromMapNum = ikdtree.validnum();
             kdtree_size_st = ikdtree.size();
             
-            // cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<" downsamp "<<feats_down_size<<" Map num: "<<featsFromMapNum<<"effect num:"<<effct_feat_num<<endl;
+            //cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<" downsamp "<<feats_down_size<<" Map num: "<<featsFromMapNum<<"effect num:"<<effct_feat_num<<endl;
 
             /*** ICP and iterated Kalman filter update ***/
             if (feats_down_size < 5)
