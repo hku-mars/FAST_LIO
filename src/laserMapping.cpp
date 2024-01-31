@@ -376,7 +376,7 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
         po->b = 0;
         return 0;
     }
-
+    //For just making integer without interpolation
     /*if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
     {
         cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
@@ -616,7 +616,7 @@ bool sync_packages(MeasureGroup &meas)
     {
         return false;
     }
-
+    std::cout<<"image buffer size"<<image_buffer.size()<<endl;
     /*new one....it is to sync image and lidar points...*/
     double imag_time = image_buffer.front()->header.stamp.toSec();
     img_process_mat.clear();
@@ -627,6 +627,24 @@ bool sync_packages(MeasureGroup &meas)
         img_process_mat.push_back(image_buffer.front()->image);
         image_buffer.pop_front();
     }
+    
+
+    /*img_process_mat.clear();
+    if(!image_buffer.empty() && !lidar_buffer.empty())
+    {   
+        int image_size = image_buffer.size();
+        int lidar_size = lidar_buffer.size();
+
+        if(image_size==1)
+        {
+            double imag_time = image_buffer.front()->header.stamp.toSec();
+            if(imag_time<lidar_end_time)
+            {
+                img_process_mat.push_back(image_buffer.front()->image);
+                image_buffer.pop_front();
+            }
+        }
+    }*/
 
 
 
@@ -642,6 +660,9 @@ bool sync_packages(MeasureGroup &meas)
         meas.imu.push_back(imu_buffer.front());
         imu_buffer.pop_front();
     }
+
+    std::cout<< "lidar buffer size"<<lidar_buffer.size()<<endl;
+    std::cout<< "Mat size"<<img_process_mat.size()<<endl;
 
     lidar_buffer.pop_front();
     time_buffer.pop_front();
