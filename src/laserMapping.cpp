@@ -618,7 +618,7 @@ bool sync_packages(MeasureGroup &meas)
     }
     std::cout<<"image buffer size"<<image_buffer.size()<<endl;
     /*new one....it is to sync image and lidar points...*/
-    double imag_time = image_buffer.front()->header.stamp.toSec();
+    /*double imag_time = image_buffer.front()->header.stamp.toSec();
     img_process_mat.clear();
     while((!image_buffer.empty())&&(imag_time<=lidar_end_time))
     {
@@ -626,25 +626,43 @@ bool sync_packages(MeasureGroup &meas)
         if(imag_time>lidar_end_time) break;
         img_process_mat.push_back(image_buffer.front()->image);
         image_buffer.pop_front();
-    }
-    
-
-    /*img_process_mat.clear();
-    if(!image_buffer.empty() && !lidar_buffer.empty())
-    {   
-        int image_size = image_buffer.size();
-        int lidar_size = lidar_buffer.size();
-
-        if(image_size==1)
-        {
-            double imag_time = image_buffer.front()->header.stamp.toSec();
-            if(imag_time<lidar_end_time)
-            {
-                img_process_mat.push_back(image_buffer.front()->image);
-                image_buffer.pop_front();
-            }
-        }
     }*/
+    
+    img_process_mat.clear();
+    int lidar_size = lidar_buffer.size();
+    int image_size = image_buffer.size();
+    cv::Mat tempimage;
+    for(int i=0; i< lidar_size ;i++)
+    {
+        double lidar_curr_time = time_buffer[i];
+        if(image_size==0) break;
+        double image_curr_time = image_buffer.front()->header.stamp.toSec();
+        if(image_curr_time>lidar_end_time) break;
+        if(image_size==1)
+        {   
+            tempimage= image_buffer.front()->image;
+            img_process_mat.push_back(tempimage);
+            image_buffer.pop_front();           
+        }else
+        {
+            int k=0;
+            double time_min= std::abs(lidar_curr_time-image_buffer[k]->header.stamp.toSec());
+            for(int j=k; j<image_size; j++)
+            {
+                double t1 = std::abs(lidar_curr_time-image_buffer[j]->header.stamp.toSec());
+                if(time_min>t1)
+                {
+                     time_min=t1;
+                     k=j;
+                }else
+                {
+                    img_process_mat.push_back(image_buffer[k]->image);
+                }
+            }
+        } 
+
+
+    }
 
 
 
