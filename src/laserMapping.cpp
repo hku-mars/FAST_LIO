@@ -222,6 +222,20 @@ void RGBpointBodyToWorld(PointType const * const pi, PointType * const po)
     po->intensity = pi->intensity;
 }
 
+void RGBpointBodyToWorld_withRGB(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
+{
+    V3D p_body(pi->x, pi->y, pi->z);
+    V3D p_global(state_point.rot * (state_point.offset_R_L_I*p_body + state_point.offset_T_L_I) + state_point.pos);
+
+    po->x = p_global(0);
+    po->y = p_global(1);
+    po->z = p_global(2);
+    po->r = pi -> r;
+    po->g = pi -> g;
+    po->b = pi -> b; 
+
+}
+
 void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
 {
     V3D p_body_lidar(pi->x, pi->y, pi->z);
@@ -232,6 +246,7 @@ void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
     po->z = p_body_imu(2);
     po->intensity = pi->intensity;
 }
+
 
 void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 {
@@ -684,8 +699,8 @@ void map_incremental()
     kdtree_incremental_time = omp_get_wtime() - st_time;
 }
 
-PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
-PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
+//PointCloudXYZI::Ptr pcl_wait_pub(new PointCloudXYZI(500000, 1));
+//PointCloudXYZI::Ptr pcl_wait_save(new PointCloudXYZI());
 void publish_frame_world(const ros::Publisher & pubLaserCloudFull)
 {
     if(scan_pub_en)
@@ -712,7 +727,7 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFull)
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. noted that pcd save will influence the real-time performences **/
-    if (pcd_save_en)
+    /*if (pcd_save_en)
     {
         int size = feats_undistort->points.size();
         PointCloudXYZI::Ptr laserCloudWorld( \
@@ -737,21 +752,28 @@ void publish_frame_world(const ros::Publisher & pubLaserCloudFull)
             pcl_wait_save->clear();
             scan_wait_num = 0;
         }
-    }
+    }*/
 }
-
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_wait_save (new pcl::PointCloud<pcl::PointXYZRGB>());
 void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
 {
+    
     int size = feats_undistort->points.size();
     PointCloudXYZI::Ptr laserCloudIMUBody(new PointCloudXYZI(size, 1));
     PointCloudXYZI::Ptr laserCloudCAMERABody(new PointCloudXYZI(size, 1));
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorcloud(new pcl::PointCloud<pcl::PointXYZRGB>(size,1));
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorlidarcloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_temp_save (new pcl::PointCloud<pcl::PointXYZRGB>());
+
+    //for pcd
+    PointCloudXYZI::Ptr laserCloudWorld(new PointCloudXYZI(size, 1));
 
     for (int i = 0; i < size; i++)
     {
         RGBpointBodyLidarToIMU(&feats_undistort->points[i], \
-                            &laserCloudIMUBody->points[i]);
+                                &laserCloudIMUBody->points[i]);
+        RGBpointBodyToWorld(&feats_undistort->points[i], \
+                                &laserCloudWorld->points[i]);
         IMU_TO_CAMERA(&laserCloudIMUBody->points[i],&laserCloudCAMERABody->points[i]);
         if(img_process_mat.empty()==true)
         {
@@ -766,27 +788,52 @@ void publish_frame_body(const ros::Publisher & pubLaserCloudFull_body)
             validPoint.r = colorcloud->points[i].r;
             validPoint.g = colorcloud->points[i].g;
             validPoint.b = colorcloud->points[i].b;
-            colorlidarcloud->points.push_back(validPoint);       
-        }
-        //Camera_to_IMU(&colorcloud->points[i], &colorlidarcloud->points[i]);
-        /*
-        colorlidarcloud->points[i].x=laserCloudIMUBody->points[i].x;
-        colorlidarcloud->points[i].y=laserCloudIMUBody->points[i].y;
-        colorlidarcloud->points[i].z=laserCloudIMUBody->points[i].z;
-        colorlidarcloud->points[i].r=colorcloud->points[i].r;
-        colorlidarcloud->points[i].g=colorcloud->points[i].g;
-        colorlidarcloud->points[i].b=colorcloud->points[i].b;*/
-              
+            colorlidarcloud->points.push_back(validPoint);
+            
+            //FOR PCD FILE MAKING-> CHANGE INTO GLOBAL COORDINATE...!!!!
+            pcl::PointXYZRGB tempPoint;
+            tempPoint.x = laserCloudWorld->points[i].x;
+            tempPoint.y = laserCloudWorld->points[i].y;
+            tempPoint.z = laserCloudWorld->points[i].z;
+            tempPoint.r = validPoint.r;
+            tempPoint.g = validPoint.g;
+            tempPoint.b = validPoint.b;
+            pcl_temp_save->points.push_back(tempPoint);      
+        }              
     }
-    img_process_mat.pop_front();
 
+    img_process_mat.pop_front();
+    
+    //publish
     sensor_msgs::PointCloud2 laserCloudmsg;
     pcl::toROSMsg(*colorlidarcloud, laserCloudmsg);
     laserCloudmsg.header.stamp = ros::Time().fromSec(lidar_end_time);
     laserCloudmsg.header.frame_id = "body";
     pubLaserCloudFull_body.publish(laserCloudmsg);
     publish_count -= PUBFRAME_PERIOD;
-}
+
+    /**************** save map ****************/
+    /* 1. make sure you have enough memories
+    /* 2. noted that pcd save will influence the real-time performences **/
+    if (pcd_save_en)
+    {
+        *pcl_wait_save += *pcl_temp_save;
+
+        static int scan_wait_num = 0;
+        scan_wait_num ++;
+        if (pcl_wait_save->size() > 0 && pcd_save_interval > 0  && scan_wait_num >= pcd_save_interval)
+        {
+            pcd_index ++;
+            string all_points_dir(string(string(ROOT_DIR) + "PCD/scans_") + to_string(pcd_index) + string(".pcd"));
+            pcl::PCDWriter pcd_writer;
+            cout << "current scan saved to /PCD/" << all_points_dir << endl;
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
+            pcl_wait_save->clear();
+            scan_wait_num = 0;
+        }
+    }
+}    
+
 
 void publish_effect_world(const ros::Publisher & pubLaserCloudEffect)
 {
@@ -1028,7 +1075,7 @@ int main(int argc, char** argv)
     nh.param<bool>("feature_extract_enable", p_pre->feature_enabled, false);
     nh.param<bool>("runtime_pos_log_enable", runtime_pos_log, 0);
     nh.param<bool>("mapping/extrinsic_est_en", extrinsic_est_en, true);
-    nh.param<bool>("pcd_save/pcd_save_en", pcd_save_en, false);
+    nh.param<bool>("pcd_save/pcd_save_en", pcd_save_en, true);
     nh.param<int>("pcd_save/interval", pcd_save_interval, -1);
     nh.param<vector<double>>("mapping/extrinsic_T", extrinT, vector<double>());
     nh.param<vector<double>>("mapping/extrinsic_R", extrinR, vector<double>());
