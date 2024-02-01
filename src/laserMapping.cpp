@@ -222,20 +222,6 @@ void RGBpointBodyToWorld(PointType const * const pi, PointType * const po)
     po->intensity = pi->intensity;
 }
 
-void RGBpointBodyToWorld_withRGB(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
-{
-    V3D p_body(pi->x, pi->y, pi->z);
-    V3D p_global(state_point.rot * (state_point.offset_R_L_I*p_body + state_point.offset_T_L_I) + state_point.pos);
-
-    po->x = p_global(0);
-    po->y = p_global(1);
-    po->z = p_global(2);
-    po->r = pi -> r;
-    po->g = pi -> g;
-    po->b = pi -> b; 
-
-}
-
 void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
 {
     V3D p_body_lidar(pi->x, pi->y, pi->z);
@@ -251,9 +237,6 @@ void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
 void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 {
     Eigen::Matrix4d extrinsic_matrix;
-    /*extrinsic_matrix<< -0.00113207, 0.0158688, 0.999873, 0.050166,
-            -0.9999999,  -0.000486594, -0.00113994, 0.0474116,
-            0.000504622,  -0.999874,  -0.0158682, -0.0312415;*/
     
     extrinsic_matrix<< 1.0, 0.0, 0.0, -0.071,
            0.0, 0.0, 1.0,  0.03421,
@@ -300,13 +283,13 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     po->y=pi->y;
     po->z=pi->z;
 
-    //camera distortion matrix
+    //camera distortion coeffecient
     double k1 = -0.35866339052162377;
     double k2 = 0.14886143788297318;
     double p1 = 0.0002815532809810967;
     double p2 = 0.00040207936847531234;
 
-    cv::Mat distortionMatrix = (cv::Mat_<double>(1, 5) << k1, k2, p1, p2, 0.0);
+    //cv::Mat distortionMatrix = (cv::Mat_<double>(1, 5) << k1, k2, p1, p2, 0.0);
 
 
     //camera procjection matrix
@@ -317,10 +300,28 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     double v0 = 353.5411952863725;
     
     
-    camera_projection_matrix<< gamma1, 0, u0, 0, 
+    /*camera_projection_matrix<< gamma1, 0, u0, 0, 
                                 0, gamma2, v0, 0,
-                                0, 0, 1, 0;    
+                                0, 0, 1, 0;    */
+    
+    //applying distortion matrix
+    double dist_x = pi->x;
+    double dist_y = pi->y;
+    double dist_z = pi->z;
+    dist_x= dist_x/dist_z;
+    dist_y= dist_y/dist_z;
 
+
+    double r= std::sqrt(dist_x*dist_x + dist_y*dist_y);
+    double vari = 1+k1*r*r + k2*r*r*r*r;
+    double undist_x = dist_x*(vari)+ 2*p1*dist_x*dist_y+ p2*(r*r+2*dist_x*dist_x);
+    double undist_y = dist_y*(vari)+ p1*(r*r+2*dist_y*dist_y)+ 2*p2*dist_x*dist_y;
+
+    // using camera projection matrix 
+    double x_coord = gamma1*undist_x + u0;
+    double y_coord = gamma2*undist_y + v0;
+/*
+    //no distortion matrix
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
     Eigen::Vector3d c_body(camera_projection_matrix*p_body);
 
@@ -328,17 +329,7 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     double homo =1.0/c_body(2);      
 
     double x_coord = c_body(0)*homo;
-    double y_coord = c_body(1)*homo;
-
-
-    /*//applyting distortion matrix
-    Eigen::Vector2d distorted_coords(x_coord, y_coord);
-    cv::Mat distorted = (cv::Mat_<double>(1, 2) << distorted_coords(0), distorted_coords(1));
-    cv::undistortPoints(distorted, distorted, cv::Mat::eye(3, 3, CV_64F), distortionMatrix);
-    Eigen::Vector2d undistorted(distorted.at<double>(0, 0), distorted.at<double>(0, 1));
-    
-    int u = static_cast<int>(undistorted(0));
-    int v = static_cast<int>(undistorted(1));*/
+    double y_coord = c_body(1)*homo;*/
 
     
     int u=static_cast<int>(x_coord);
@@ -376,22 +367,9 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
         po->b = 0;
         return 0;
     }
-    //For just making integer without interpolation
-    /*if (u >= 0 && u < image.cols && v >= 0 && v < image.rows)
-    {
-        cv::Vec3b pixel = image.at<cv::Vec3b>(v,u);
-        po->r = static_cast<uint8_t>(pixel[2]);
-        po->g = static_cast<uint8_t>(pixel[1]);
-        po->b = static_cast<uint8_t>(pixel[0]);
-    } else {
-        // Handle the case where the computed 2D coordinates are outside the image bounds
-        po->r = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[2]; //->just for test
-        po->g = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[1];
-        po->b = 0; //image.at<cv::Vec3b>(cv::Point(20,20))[0];
-        return 0;
-    }*/
 
-    if(c_body(2)>0)
+
+    if(dist_z>0)
     {          
         // Handle the case where the point is behind the camera
         po->r = 0;
@@ -618,6 +596,9 @@ bool sync_packages(MeasureGroup &meas)
     }
     std::cout<<"image buffer size"<<image_buffer.size()<<endl;
     /*new one....it is to sync image and lidar points...*/
+    
+    // Version 1- BASIC
+
     /*double imag_time = image_buffer.front()->header.stamp.toSec();
     img_process_mat.clear();
     while((!image_buffer.empty())&&(imag_time<=lidar_end_time))
@@ -627,46 +608,95 @@ bool sync_packages(MeasureGroup &meas)
         img_process_mat.push_back(image_buffer.front()->image);
         image_buffer.pop_front();
     }*/
+
+
+    // Version 2 - considering the init
+    /*double imag_time = image_buffer.front()->header.stamp.toSec();
+    img_process_mat.clear();
+    int lidar_size = lidar_buffer.size();
+    while((!image_buffer.empty())&&(imag_time<=lidar_end_time))
+    {
+        imag_time=image_buffer.front()->header.stamp.toSec();
+        if(imag_time>lidar_end_time) break;
+        while(imag_time<time_buffer.front())
+        {
+            image_buffer.pop_front();
+            imag_time=image_buffer.front()->header.stamp.toSec();
+        }
+
+        img_process_mat.push_back(image_buffer.front()->image);
+        image_buffer.pop_front();
+    }*/
     
+    // Version 3- considering the exception
     img_process_mat.clear();
     int lidar_size = lidar_buffer.size();
     int image_size = image_buffer.size();
-    cv::Mat tempimage;
-    for(int i=0; i< lidar_size ;i++)
+    if(image_size==0)
     {
-        double lidar_curr_time = time_buffer[i];
-        if(image_size==0) break;
+        ROS_WARN("IMAGE_BUFFER IS EMPTY.. ERROR");
+        return false;
+    }else if(image_size==1)
+    {
         double image_curr_time = image_buffer.front()->header.stamp.toSec();
-        if(image_curr_time>lidar_end_time) break;
-        if(image_size==1)
-        {   
-            tempimage= image_buffer.front()->image;
-            img_process_mat.push_back(tempimage);
-            image_buffer.pop_front();           
+        cv::Mat tempo = image_buffer.front()->image;
+        if(image_curr_time<=lidar_end_time && image_curr_time>= time_buffer.front())
+        {
+            for(int i=0; i<lidar_size;i++)
+            {
+                img_process_mat.push_back(tempo);
+            }
+            image_buffer.pop_front();
         }else
         {
-            int k=0;
-            double time_min= std::abs(lidar_curr_time-image_buffer[k]->header.stamp.toSec());
-            for(int j=k; j<image_size; j++)
-            {
-                double t1 = std::abs(lidar_curr_time-image_buffer[j]->header.stamp.toSec());
-                if(time_min>t1)
-                {
-                     time_min=t1;
-                     k=j;
-                }else
-                {
-                    img_process_mat.push_back(image_buffer[k]->image);
-                }
-            }
-        } 
+            return false;
+        }
+    }else
+    {   
+        int a=0;
+        int b=1;
+        double image_curr_time = image_buffer[0]->header.stamp.toSec();
+        
+        //image should be befor the lidar end time
+        if(image_curr_time>lidar_end_time) return false;
+        
+        //deleting the image_buffer before the lidar start
+        while(image_curr_time<time_buffer.front())
+        {
+            image_buffer.pop_front();
+            image_curr_time= image_buffer.front()->header.stamp.toSec();
+        }
+        //recheck the image size
+        image_size=image_buffer.size();
 
+        //assigning the image to the lidar
+        for(int i=0; i<lidar_size ;i++)
+        {
+            image_curr_time=image_buffer[a]->header.stamp.toSec();
+            double lidar_curr_time = time_buffer[i];
+            double min_time = std::abs(lidar_curr_time-image_curr_time);
+
+            for(int j=b ; j<image_size; j++)
+            {
+                double time_second = image_buffer[j]->header.stamp.toSec();
+                double min_comp = std::abs(lidar_curr_time-time_second);
+                if(time_second<=lidar_end_time && min_comp<min_time)
+                {
+                    min_time=time_second;
+                    a=j;
+                }else break;
+            }
+            b=a;
+            img_process_mat.push_back(image_buffer[a]->image);
+        }
+
+        for(int k=0; k<a+1; k++)
+        {
+            image_buffer.pop_front();
+        }
 
     }
-
-
-
-
+ 
 
     /*** push imu data, and pop from imu buffer ***/
     double imu_time = imu_buffer.front()->header.stamp.toSec();
