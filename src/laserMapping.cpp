@@ -594,7 +594,7 @@ bool sync_packages(MeasureGroup &meas)
     {
         return false;
     }
-    std::cout<<"image buffer size"<<image_buffer.size()<<endl;
+    //std::cout<<"image buffer size"<<image_buffer.size()<<endl;
     /*new one....it is to sync image and lidar points...*/
     
     // Version 1- BASIC
@@ -688,7 +688,10 @@ bool sync_packages(MeasureGroup &meas)
             }
             b=a;
             img_process_mat.push_back(image_buffer[a]->image);
+            std::cout<<"lidar time "<< lidar_curr_time/1000000000<<endl;
+            std::cout<<"image time "<< image_buffer[a]->header.stamp.toSec()/1000000000<<endl;
         }
+        std::cout<<"end"<<endl;
 
         for(int k=0; k<a+1; k++)
         {
@@ -709,8 +712,8 @@ bool sync_packages(MeasureGroup &meas)
         imu_buffer.pop_front();
     }
 
-    std::cout<< "lidar buffer size"<<lidar_buffer.size()<<endl;
-    std::cout<< "Mat size"<<img_process_mat.size()<<endl;
+    //std::cout<< "lidar buffer size"<<lidar_buffer.size()<<endl;
+    //std::cout<< "Mat size"<<img_process_mat.size()<<endl;
 
     lidar_buffer.pop_front();
     time_buffer.pop_front();
