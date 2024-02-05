@@ -688,8 +688,9 @@ bool sync_packages(MeasureGroup &meas)
             }
             b=a;
             img_process_mat.push_back(image_buffer[a]->image);
-            std::cout<<"lidar time "<< lidar_curr_time/1000000000<<endl;
-            std::cout<<"image time "<< image_buffer[a]->header.stamp.toSec()/1000000000<<endl;
+            cout.precision(20);
+            std::cout<<"lidar time "<< lidar_curr_time<<endl;
+            std::cout<<"image time "<< image_buffer[a]->header.stamp.toSec()<<endl;
         }
         std::cout<<"end"<<endl;
 
@@ -714,7 +715,6 @@ bool sync_packages(MeasureGroup &meas)
 
     //std::cout<< "lidar buffer size"<<lidar_buffer.size()<<endl;
     //std::cout<< "Mat size"<<img_process_mat.size()<<endl;
-
     lidar_buffer.pop_front();
     time_buffer.pop_front();
     lidar_pushed = false;
