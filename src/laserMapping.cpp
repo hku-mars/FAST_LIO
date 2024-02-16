@@ -154,6 +154,24 @@ geometry_msgs::PoseStamped msg_body_pose;
 shared_ptr<Preprocess> p_pre(new Preprocess());
 shared_ptr<ImuProcess> p_imu(new ImuProcess());
 
+///////////////**Camera extrinsic and intrinsic parameters**///////////
+
+//camera distortion coeffecient
+double k1 = 0;
+double k2 = 0;
+double p1 = 0;
+double p2 = 0;
+
+//camera procjection matrix
+double gamma1 = 0;
+double gamma2 = 0;
+double u0 = 0;
+double v0 = 0;
+
+vector<double> extrinsic_matrix_vector;
+Eigen::Matrix4d extrinsic_matrix; 
+//////////////////////////////////////////////////
+
 void SigHandle(int sig)
 {
     flg_exit = true;
@@ -236,12 +254,13 @@ void RGBpointBodyLidarToIMU(PointType const * const pi, PointType * const po)
 
 void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 {
-    Eigen::Matrix4d extrinsic_matrix;
+    /*Eigen::Matrix4d extrinsic_matrix;
     
     extrinsic_matrix<< 1.0, 0.0, 0.0, -0.071,
            0.0, 0.0, 1.0,  0.03421,
            0.0, -1.0, 0.0, 0.01512,
-           0.0, 0.0, 0.0, 1.0;
+           0.0, 0.0, 0.0, 1.0;*/
+    
            
     Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
     Eigen::Vector4d c_body;
@@ -256,11 +275,11 @@ void IMU_TO_CAMERA(PointType const * const pi, PointType * const po)
 
 void Camera_to_IMU(pcl::PointXYZRGB *pi, pcl::PointXYZRGB *po)
 {
-    Eigen::Matrix4d extrinsic_matrix;   
+    /*Eigen::Matrix4d extrinsic_matrix;   
     extrinsic_matrix<< 1.0, 0.0, 0.0, -0.071,
            0.0, 0.0, 1.0,  0.03421,
            0.0, -1.0, 0.0, 0.01512,
-           0.0, 0.0, 0.0, 1.0;
+           0.0, 0.0, 0.0, 1.0;*/
     
     Eigen::Matrix4d inverse_extrinsic = extrinsic_matrix.inverse();
 
@@ -284,27 +303,21 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     po->z=pi->z;
 
     //camera distortion coeffecient
-    double k1 = -0.35866339052162377;
+    /*double k1 = -0.35866339052162377;
     double k2 = 0.14886143788297318;
     double p1 = 0.0002815532809810967;
     double p2 = 0.00040207936847531234;
 
-    //cv::Mat distortionMatrix = (cv::Mat_<double>(1, 5) << k1, k2, p1, p2, 0.0);
-
 
     //camera procjection matrix
-    Eigen::MatrixXd camera_projection_matrix(3,4);
     double gamma1 = 731.2592265895066;
     double gamma2 = 730.07196860144;
     double u0 = 630.2460232287447;
-    double v0 = 353.5411952863725;
+    double v0 = 353.5411952863725;*/
     
-    
-    /*camera_projection_matrix<< gamma1, 0, u0, 0, 
-                                0, gamma2, v0, 0,
-                                0, 0, 1, 0;    */
     
     //applying distortion matrix
+
     double dist_x = pi->x;
     double dist_y = pi->y;
     double dist_z = pi->z;
@@ -320,17 +333,6 @@ int projection(PointType const * const pi, cv::Mat image, pcl::PointXYZRGB *po)
     // using camera projection matrix 
     double x_coord = gamma1*undist_x + u0;
     double y_coord = gamma2*undist_y + v0;
-/*
-    //no distortion matrix
-    Eigen::Vector4d p_body(pi->x, pi->y, pi->z,1);
-    Eigen::Vector3d c_body(camera_projection_matrix*p_body);
-
-    //homography
-    double homo =1.0/c_body(2);      
-
-    double x_coord = c_body(0)*homo;
-    double y_coord = c_body(1)*homo;*/
-
     
     int u=static_cast<int>(x_coord);
     int v=static_cast<int>(y_coord);
@@ -689,8 +691,8 @@ bool sync_packages(MeasureGroup &meas)
             b=a;
             img_process_mat.push_back(image_buffer[a]->image);
             cout.precision(20);
-            std::cout<<"lidar time "<< lidar_curr_time<<endl;
-            std::cout<<"image time "<< image_buffer[a]->header.stamp.toSec()<<endl;
+            //std::cout<<"lidar time "<< lidar_curr_time<<endl;
+            //std::cout<<"image time "<< image_buffer[a]->header.stamp.toSec()<<endl;
         }
         std::cout<<"end"<<endl;
 
@@ -713,8 +715,7 @@ bool sync_packages(MeasureGroup &meas)
         imu_buffer.pop_front();
     }
 
-    //std::cout<< "lidar buffer size"<<lidar_buffer.size()<<endl;
-    //std::cout<< "Mat size"<<img_process_mat.size()<<endl;
+
     lidar_buffer.pop_front();
     time_buffer.pop_front();
     lidar_pushed = false;
@@ -1151,10 +1152,36 @@ int main(int argc, char** argv)
     nh.param<int>("pcd_save/interval", pcd_save_interval, -1);
     nh.param<vector<double>>("mapping/extrinsic_T", extrinT, vector<double>());
     nh.param<vector<double>>("mapping/extrinsic_R", extrinR, vector<double>());
+
+    /////////camera-added-parameters////////
+    nh.param<vector<double>>("camera/ic_extrinsic", extrinsic_matrix_vector, vector<double>());
+    nh.param<double>("camera/k1",k1, -0.35866339052162377 );
+    nh.param<double>("camera/k2",k2, 0.14886143788297318 );
+    nh.param<double>("camera/p1",p1, 0.0002815532809810967 );
+    nh.param<double>("camera/p2",p2, 0.00040207936847531234 );
+    nh.param<double>("camera/gamma1",gamma1, 731.2592265895066);
+    nh.param<double>("camera/gamma2",gamma2, 730.07196860144 );
+    nh.param<double>("camera/u0",u0, 630.2460232287447 );
+    nh.param<double>("camera/v0",v0, 353.5411952863725 );
+    cout<<"k1"<<k1<<endl;
+    ///////////////////////////////////////////////////////////////////////
     cout<<"p_pre->lidar_type "<<p_pre->lidar_type<<endl;
     
     path.header.stamp    = ros::Time::now();
     path.header.frame_id ="camera_init";
+
+    ///////////// extrinsic matrix to eigen matrix//////////////
+    if (extrinsic_matrix_vector.size() == 16) {
+        extrinsic_matrix << extrinsic_matrix_vector[0], extrinsic_matrix_vector[1], extrinsic_matrix_vector[2], extrinsic_matrix_vector[3],
+                            extrinsic_matrix_vector[4], extrinsic_matrix_vector[5], extrinsic_matrix_vector[6], extrinsic_matrix_vector[7],
+                            extrinsic_matrix_vector[8], extrinsic_matrix_vector[9], extrinsic_matrix_vector[10], extrinsic_matrix_vector[11],
+                            extrinsic_matrix_vector[12], extrinsic_matrix_vector[13], extrinsic_matrix_vector[14], extrinsic_matrix_vector[15];
+    } else {
+        ROS_ERROR("Invalid size for extrinsic matrix vector!");
+        // Handle the error condition here
+    }
+    cout<<extrinsic_matrix<<endl;
+    ////////////////////////////////////////////////////////////////
 
     /*** variables definition ***/
     int effect_feat_num = 0, frame_num = 0;
