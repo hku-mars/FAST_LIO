@@ -107,14 +107,22 @@ B. The warning message "Failed to find match for field 'time'." means the timest
 
 C. We recommend to set the **extrinsic_est_en** to false if the extrinsic is give. As for the extrinsic initiallization, please refer to our recent work: [**Robust and Online LiDAR-inertial Initialization**](https://arxiv.org/abs/2202.11006).
 
-### 3.1 For Avia
-Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver2 installation](https://github.com/Livox-SDK/livox_ros_driver2), then
+### 3.1 Run use ros launch
+Connect to your PC to Livox LiDAR by following  [Livox-ros-driver2 installation](https://github.com/Livox-SDK/livox_ros_driver2), then
 ```bash
-    cd <ros2_ws>
-    . install/setup.bash # use setup.zsh if use zsh
-    ros2 launch fast_lio mapping.launch.py
-    ros2 launch livox_ros_driver2 msg_MID360_launch.py
+cd <ros2_ws>
+. install/setup.bash # use setup.zsh if use zsh
+ros2 launch fast_lio mapping.launch.py config_file:=avia.yaml
 ```
+
+Change `config_file` parameter to other yaml file under config directory as you need.
+
+Launch livox ros driver. Use MID360 as an example.
+
+```bash
+ros2 launch livox_ros_driver2 msg_MID360_launch.py
+```
+
 - For livox serials, FAST-LIO only support the data collected by the ``` livox_lidar_msg.launch ``` since only its ``` livox_ros_driver2/CustomMsg ``` data structure produces the timestamp of each LiDAR point which is very important for the motion undistortion. ``` livox_lidar.launch ``` can not produce it right now.
 - If you want to change the frame rate, please modify the **publish_freq** parameter in the [livox_lidar_msg.launch](https://github.com/Livox-SDK/livox_ros_driver/blob/master/livox_ros_driver2/launch/livox_lidar_msg.launch) of [Livox-ros-driver](https://github.com/Livox-SDK/livox_ros_driver2) before make the livox_ros_driver pakage.
 
