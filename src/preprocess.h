@@ -17,7 +17,7 @@ enum LID_TYPE
   VELO16,
   OUST64,
   MID360
-};  //{1, 2, 3}
+};  //{1, 2, 3, 4}
 enum TIME_UNIT
 {
   SEC = 0,

@@ -117,7 +117,7 @@ install(TARGETS fastlio_mapping
 )
 
 install(
-  DIRECTORY config launch rviz
+  DIRECTORY config launch rviz_cfg
   DESTINATION share/${PROJECT_NAME}
 )
 
