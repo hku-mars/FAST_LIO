@@ -176,8 +176,8 @@ We produce [Rosbag Files](https://drive.google.com/drive/folders/1VBK5idI1oyW0GC
     
 Run:
 ```
-roslaunch fast_lio mapping_velodyne.launch
-rosbag play YOUR_DOWNLOADED.bag
+ros2 launch fast_lio mapping.launch.py config_path:=velodyne.yaml
+ros2 bag play <your_bag_dir>
 ```
 
 ## 5.Implementation on UAV
