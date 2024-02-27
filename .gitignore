@@ -8,3 +8,4 @@ Log/*.pdf
 PCD/*.pcd
 /.idea/
 /cmake-build-debug/
+/.vscode/

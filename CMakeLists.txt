@@ -14,12 +14,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -pthread -fexceptions")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-message("Current CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "Current CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
   include(ProcessorCount)
   ProcessorCount(N)
-  message("Processer number:  ${N}")
+  message(STATUS "Processor number:  ${N}")
 
   if(N GREATER 4)
     add_definitions(-DMP_EN)
@@ -74,10 +74,7 @@ set(dependencies
 
 # Thirdparty libraries
 find_package(Eigen3 REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common io)
-
-message(Eigen: ${EIGEN3_INCLUDE_DIR})
-message(STATUS "PCL: ${PCL_INCLUDE_DIRS}")
+#message(Eigen: ${EIGEN3_INCLUDE_DIR})
 
 set(msg_files
   "msg/Pose6D.msg"
@@ -92,9 +89,8 @@ add_executable(fastlio_mapping src/laserMapping.cpp include/ikd-Tree/ikd_Tree.cp
 target_include_directories(fastlio_mapping PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  ${PCL_INCLUDE_DIRS}
 )
-target_link_libraries(fastlio_mapping ${PCL_LIBRARIES} ${PYTHON_LIBRARIES} Eigen3::Eigen)
+target_link_libraries(fastlio_mapping ${PYTHON_LIBRARIES} Eigen3::Eigen)
 target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS})
 
 list(APPEND EOL_LIST "foxy" "galactic" "eloquent" "dashing" "crystal")
