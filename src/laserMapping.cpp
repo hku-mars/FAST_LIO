@@ -845,7 +845,7 @@ public:
         this->get_parameter_or<bool>("publish.dense_publish_en", dense_pub_en, true);
         this->get_parameter_or<bool>("publish.scan_bodyframe_pub_en", scan_body_pub_en, true);
         this->get_parameter_or<string>("publish.odom_topic", odom_topic, "/Odometry");
-        this->get_parameter_or<string>("publish.path_topic", odom_topic, "/path");
+        this->get_parameter_or<string>("publish.path_topic", path_topic, "/path");
         this->get_parameter_or<string>("publish.cloud_reg_topic", cloud_reg_topic, "/cloud_registered");
         this->get_parameter_or<string>("publish.cloud_reg_body_topic", cloud_reg_body_topic, "/cloud_registered_body");
         this->get_parameter_or<string>("publish.cloud_eff_topic", cloud_eff_topic, "/cloud_effected");
