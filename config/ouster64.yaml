@@ -46,6 +46,8 @@
             cloud_reg_body_topic: "/cloud_registered_body"
             cloud_eff_topic: "/cloud_effected"
             laser_map_topic: "/Laser_map"
+            fixed_frame: "camera_init"
+            child_frame: "body"
 
         pcd_save:
             pcd_save_en: true
