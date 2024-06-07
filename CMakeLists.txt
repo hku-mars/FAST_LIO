@@ -62,11 +62,12 @@ find_package(PCL 1.8 REQUIRED)
 message(Eigen: ${EIGEN3_INCLUDE_DIR})
 
 include_directories(
-	${catkin_INCLUDE_DIRS} 
+  ${catkin_INCLUDE_DIRS} 
   ${EIGEN3_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
-  include)
+  include
+)
 
 add_message_files(
   FILES
@@ -86,7 +87,6 @@ catkin_package(
 
 add_executable(fastlio_mapping src/laserMapping.cpp include/ikd-Tree/ikd_Tree.cpp src/preprocess.cpp)
 target_link_libraries(fastlio_mapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${PYTHON_LIBRARIES})
-
 target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS})
 
 # install node
