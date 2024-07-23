@@ -204,7 +204,22 @@ Step B: Run below
 
 Step C: Run LiDAR's ros driver or play rosbag.
 
-### 3.4 PCD file save
+### 3.3 For MARSIM Simulator
+
+Install MARSIM: https://github.com/hku-mars/MARSIM and run MARSIM as below
+
+```
+cd ~/$MARSIM_ROS_DIR$
+roslaunch test_interface single_drone_avia.launch
+```
+
+Then Run FAST-LIO:
+
+```
+roslaunch fast_lio mapping_marsim.launch
+```
+
+### 3.5 PCD file save
 
 Set ``` pcd_save_enable ``` in launchfile to ``` 1 ```. All the scans (in global frame) will be accumulated and saved to the file ``` FAST_LIO/PCD/scans.pcd ``` after the FAST-LIO is terminated. ```pcl_viewer scans.pcd``` can visualize the point clouds.
 
