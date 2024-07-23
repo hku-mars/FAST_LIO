@@ -204,7 +204,7 @@ Step B: Run below
 
 Step C: Run LiDAR's ros driver or play rosbag.
 
-### 3.3 For MARSIM Simulator
+### 3.4 For MARSIM Simulator
 
 Install MARSIM: https://github.com/hku-mars/MARSIM and run MARSIM as below
 
