@@ -59,9 +59,16 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
-#include <livox_ros_driver2/msg/custom_msg.hpp>
+#include <livox_interfaces/msg/custom_msg.hpp>
 #include "preprocess.h"
 #include <ikd-Tree/ikd_Tree.h>
+
+#include <pdal/PointTable.hpp>
+#include <pdal/PointView.hpp>
+#include <pdal/io/LasWriter.hpp>
+#include <pdal/PipelineManager.hpp>
+#include <pdal/StageFactory.hpp>
+#include <filesystem>
 
 #define INIT_TIME           (0.1)
 #define LASER_POINT_COV     (0.001)
@@ -308,7 +315,7 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::UniquePtr msg)
 
 double timediff_lidar_wrt_imu = 0.0;
 bool   timediff_set_flg = false;
-void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg) 
+void livox_pcl_cbk(const livox_interfaces::msg::CustomMsg::UniquePtr msg) 
 {
     mtx_buffer.lock();
     double cur_time = get_time_sec(msg->header.stamp);
@@ -513,7 +520,7 @@ void publish_frame_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::Share
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. noted that pcd save will influence the real-time performences **/
-    /*
+    
     if (pcd_save_en)
     {
         int size = feats_undistort->points.size();
@@ -527,20 +534,25 @@ void publish_frame_world(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::Share
         }
         *pcl_wait_save += *laserCloudWorld;
 
-        static int scan_wait_num = 0;
-        scan_wait_num ++;
-        if (pcl_wait_save->size() > 0 && pcd_save_interval > 0  && scan_wait_num >= pcd_save_interval)
-        {
-            pcd_index ++;
-            string all_points_dir(string(string(ROOT_DIR) + "PCD/scans_") + to_string(pcd_index) + string(".pcd"));
-            pcl::PCDWriter pcd_writer;
-            cout << "current scan saved to /PCD/" << all_points_dir << endl;
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
-            pcl_wait_save->clear();
-            scan_wait_num = 0;
-        }
+        // RCLCPP_INFO_THROTTLE(this->get_logger(), 
+        //                     *(this->get_clock()), 
+        //                     5000, // Log every 5 seconds
+        //                     "Accumulated points: %zu", pcl_wait_save->size());
+
+        // static int scan_wait_num = 0;
+        // scan_wait_num ++;
+        // if (pcl_wait_save->size() > 0 && pcd_save_interval > 0  && scan_wait_num >= pcd_save_interval)
+        // {
+        //     pcd_index ++;
+        //     string all_points_dir(string(string(ROOT_DIR) + "PCD/scans_") + to_string(pcd_index) + string(".pcd"));
+        //     pcl::PCDWriter pcd_writer;
+        //     cout << "current scan saved to /PCD/" << all_points_dir << endl;
+        //     pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
+        //     pcl_wait_save->clear();
+        //     scan_wait_num = 0;
+        // }
     }
-    */
+    
 }
 
 void publish_frame_body(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull_body)
@@ -606,12 +618,6 @@ void publish_map(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub
     // pubLaserCloudMap->publish(laserCloudMap);
 }
 
-void save_to_pcd()
-{
-    pcl::PCDWriter pcd_writer;
-    pcd_writer.writeBinary(map_file_path, *pcl_wait_pub);
-}
-
 template<typename T>
 void set_posestamp(T & out)
 {
@@ -646,8 +652,8 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
 
     geometry_msgs::msg::TransformStamped trans;
     trans.header.frame_id = "camera_init";
+    trans.header.stamp = odomAftMapped.header.stamp;
     trans.child_frame_id = "body";
-    trans.header.stamp = get_ros_time(lidar_end_time);
     trans.transform.translation.x = odomAftMapped.pose.pose.position.x;
     trans.transform.translation.y = odomAftMapped.pose.pose.position.y;
     trans.transform.translation.z = odomAftMapped.pose.pose.position.z;
@@ -920,7 +926,7 @@ public:
         /*** ROS subscribe initialization ***/
         if (p_pre->lidar_type == AVIA)
         {
-            sub_pcl_livox_ = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
+            sub_pcl_livox_ = this->create_subscription<livox_interfaces::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
         }
         else
         {
@@ -935,6 +941,7 @@ public:
         pubPath_ = this->create_publisher<nav_msgs::msg::Path>("/path", 20);
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
+        pcl_wait_save.reset(new PointCloudXYZI()); 
         //------------------------------------------------------------------------------------------------------
         auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(1000.0 / 100.0));
         timer_ = rclcpp::create_timer(this, this->get_clock(), period_ms, std::bind(&LaserMappingNode::timer_callback, this));
@@ -955,6 +962,80 @@ public:
     }
 
 private:
+    void save_to_las(const pcl::PointCloud<PointType>::Ptr& cloud, const std::string& filename)
+    {
+        if (cloud->empty()) {
+            RCLCPP_WARN(this->get_logger(), "Point cloud is empty, nothing to save.");
+            return;
+        }
+
+        try {
+            // Create the target directory if it doesn't exist
+            std::filesystem::path filepath(filename);
+            std::filesystem::create_directories(filepath.parent_path());
+
+            // Create temporary file in the same directory as the target file
+            std::string temp_filename = filepath.parent_path().string() + "/temp_" + filepath.filename().string() + ".tmp.txt";
+            
+            RCLCPP_INFO(this->get_logger(), "Creating temporary file: %s", temp_filename.c_str());
+            
+            // Write point cloud data to temporary file
+            std::ofstream temp_file(temp_filename);
+            if (!temp_file.is_open()) {
+                throw std::runtime_error("Unable to create temporary file: " + temp_filename);
+            }
+            
+            // Write point cloud data
+            for (const auto& point : cloud->points) {
+                temp_file << point.x << " " 
+                        << point.y << " " 
+                        << point.z << " " 
+                        << point.intensity << std::endl;
+            }
+            temp_file.close();
+
+            // Create PDAL pipeline
+            std::stringstream pipeline_json;
+            pipeline_json << "{"
+                        << "  \"pipeline\": ["
+                        << "    {"
+                        << "      \"type\": \"readers.text\","
+                        << "      \"filename\": \"" << temp_filename << "\","
+                        << "      \"separator\": \" \","
+                        << "      \"header\": \"X Y Z Intensity\""
+                        << "    },"
+                        << "    {"
+                        << "      \"type\": \"writers.las\","
+                        << "      \"filename\": \"" << filename << "\","
+                        << "      \"dataformat_id\": 1,"
+                        << "      \"scale_x\": 0.001,"
+                        << "      \"scale_y\": 0.001,"
+                        << "      \"scale_z\": 0.001"
+                        << "    }"
+                        << "  ]"
+                        << "}";
+
+            // Execute PDAL pipeline
+            pdal::PipelineManager manager;
+            manager.readPipeline(pipeline_json);
+            manager.execute();
+
+            // Clean up temporary file
+            std::filesystem::remove(temp_filename);
+
+            RCLCPP_INFO(this->get_logger(), "Successfully saved point cloud to LAS file: %s", filename.c_str());
+        }
+        catch (const std::exception& e) {
+            RCLCPP_ERROR(this->get_logger(), "Error saving LAS file: %s", e.what());
+            throw;
+        }
+    }
+
+    void save_to_pcd()
+    {
+        pcl::PCDWriter pcd_writer;
+        pcd_writer.writeBinary(map_file_path, *pcl_wait_pub);
+    }
     void timer_callback()
     {
         if(sync_packages(Measures))
@@ -1115,11 +1196,41 @@ private:
     void map_save_callback(std_srvs::srv::Trigger::Request::ConstSharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res)
     {
         RCLCPP_INFO(this->get_logger(), "Saving map to %s...", map_file_path.c_str());
+        RCLCPP_INFO(this->get_logger(), "pcl_wait_save size: %zu", pcl_wait_save->size());
+    
         if (pcd_save_en)
         {
-            save_to_pcd();
-            res->success = true;
-            res->message = "Map saved.";
+            if (pcl_wait_save->empty()) {
+                res->success = false;
+                res->message = "No points to save";
+                return;
+            }
+
+            // Construct the save path
+            std::string las_file_path;
+            if (map_file_path.empty() || map_file_path[0] != '/') {
+                // If no path specified or relative path, save to home directory
+                las_file_path = std::string(getenv("HOME")) + "/fastlio_maps/map_" + 
+                            std::to_string(this->now().nanoseconds()) + ".las";
+            } else {
+                las_file_path = map_file_path;
+            }
+
+            RCLCPP_INFO(this->get_logger(), "Attempting to save map to %s...", las_file_path.c_str());
+
+            // save_to_pcd();
+            // res->success = true;
+            // res->message = "Map saved.";
+            try {
+                save_to_las(pcl_wait_save, las_file_path);
+                res->success = true;
+                res->message = "Map saved in LAS format to " + las_file_path;
+                RCLCPP_INFO(this->get_logger(), "Map saved successfully to %s", las_file_path.c_str());
+            } catch (const std::exception& e) {
+                res->success = false;
+                res->message = "Failed to save map: " + std::string(e.what());
+                RCLCPP_ERROR(this->get_logger(), "Failed to save map: %s", e.what());
+            }
         }
         else
         {
@@ -1137,7 +1248,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pcl_pc_;
-    rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
+    rclcpp::Subscription<livox_interfaces::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -1164,17 +1275,17 @@ int main(int argc, char** argv)
 
     if (rclcpp::ok())
         rclcpp::shutdown();
-    /**************** save map ****************/
-    /* 1. make sure you have enough memories
-    /* 2. pcd save will largely influence the real-time performences **/
-    if (pcl_wait_save->size() > 0 && pcd_save_en)
-    {
-        string file_name = string("scans.pcd");
-        string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
-        pcl::PCDWriter pcd_writer;
-        cout << "current scan saved to /PCD/" << file_name<<endl;
-        pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
-    }
+    // /**************** save map ****************/
+    // /* 1. make sure you have enough memories
+    // /* 2. pcd save will largely influence the real-time performences **/
+    // if (pcl_wait_save->size() > 0 && pcd_save_en)
+    // {
+    //     string file_name = string("scans.pcd");
+    //     string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
+    //     pcl::PCDWriter pcd_writer;
+    //     cout << "current scan saved to /PCD/" << file_name<<endl;
+    //     pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
+    // }
 
     if (runtime_pos_log)
     {

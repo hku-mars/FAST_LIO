@@ -59,8 +59,19 @@ find_package(std_srvs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
-find_package(livox_ros_driver2 REQUIRED)
+find_package(livox_ros2_driver REQUIRED)
+find_package(livox_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+
+find_package(PDAL REQUIRED)
+
+if(PDAL_FOUND)
+    message(STATUS "Found PDAL version: ${PDAL_VERSION}")
+    message(STATUS "PDAL include dirs: ${PDAL_INCLUDE_DIRS}")
+    message(STATUS "PDAL libraries: ${PDAL_LIBRARIES}")
+else()
+    message(FATAL_ERROR "PDAL not found!")
+endif()
 
 set(dependencies
   rclcpp
@@ -73,7 +84,8 @@ set(dependencies
   visualization_msgs
   pcl_ros
   pcl_conversions
-  livox_ros_driver2
+  livox_ros2_driver
+  livox_interfaces
 )
 
 # Thirdparty libraries
@@ -97,9 +109,10 @@ target_include_directories(fastlio_mapping PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${PCL_INCLUDE_DIRS}
+  ${PDAL_INCLUDE_DIRS}
 )
-target_link_libraries(fastlio_mapping ${PCL_LIBRARIES} ${PYTHON_LIBRARIES} Eigen3::Eigen)
-target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(fastlio_mapping ${PCL_LIBRARIES} ${PYTHON_LIBRARIES} Eigen3::Eigen ${PDAL_LIBRARIES})
+target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS} ${PDAL_INCLUDE_DIRS})
 
 list(APPEND EOL_LIST "foxy" "galactic" "eloquent" "dashing" "crystal")
 
