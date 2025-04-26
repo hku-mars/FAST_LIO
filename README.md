@@ -1,5 +1,9 @@
 > ROS2 Fork repo maintainer: [Ericsiii](https://github.com/Ericsii)
 
+## Changes Made from the Original Repository
+The original repository depends on the [livox_ros_driver2 Installation](https://github.com/Livox-SDK/livox_ros_driver2) for a custom ROS message type. In this version, I’ve integrated the required custom message type directly into the repository, removing the need to install 
+`livox_ros_driver2` separately.
+
 ## Related Works and Extended Application
 
 **SLAM:**
@@ -73,16 +77,6 @@ ROS >= Foxy (Recommend to use ROS-Humble). [ROS Installation](https://docs.ros.o
 PCL    >= 1.8,   Follow [PCL Installation](https://pointclouds.org/downloads/#linux).
 
 Eigen  >= 3.3.4, Follow [Eigen Installation](http://eigen.tuxfamily.org/index.php?title=Main_Page).
-
-### <span id="1.3">1.3. **livox_ros_driver2**</span>
-Follow [livox_ros_driver2 Installation](https://github.com/Livox-SDK/livox_ros_driver2).
-
-You can also use the one I modified [livox_ros_driver2](https://github.com/Ericsii/livox_ros_driver2/tree/feature/use-standard-unit)
-
-*Remarks:*
-- Since the FAST-LIO must support Livox serials LiDAR firstly, so the **livox_ros_driver** must be installed and **sourced** before run any FAST-LIO launch file.
-- How to source? The easiest way is add the line ``` source $Licox_ros_driver_dir$/devel/setup.bash ``` to the end of file ``` ~/.bashrc ```, where ``` $Licox_ros_driver_dir$ ``` is the directory of the livox ros driver workspace (should be the ``` ws_livox ``` directory if you completely followed the livox official document).
-
 
 ## 2. Build
 Clone the repository and colcon build:
