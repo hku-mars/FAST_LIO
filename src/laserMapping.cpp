@@ -129,6 +129,8 @@ M3D Lidar_R_wrt_IMU(Eye3d);
 /*** EKF inputs and output ***/
 MeasureGroup Measures;
 esekfom::esekf<state_ikfom, 12, input_ikfom> kf;
+static_assert(state_ikfom::DOF == 23,
+              "FAST_LIO_IKFOM23_EFFECTIVE_TRANSITION_S2CORR_V2 requires 23 DOF");
 state_ikfom state_point;
 vect3 pos_lid;
 
@@ -885,13 +887,30 @@ int main(int argc, char** argv)
             svd_time   = 0;
             t0 = omp_get_wtime();
 
+            const bool effective_transition_cycle_started =
+                p_imu->initialized();
+            if (effective_transition_cycle_started)
+            {
+                kf.beginEffectiveTransitionCycle();
+            }
             p_imu->Process(Measures, kf, feats_undistort);
+            if (!effective_transition_cycle_started && p_imu->initialized())
+            {
+                kf.establishEffectiveTransitionBaseline(lidar_end_time);
+            }
             state_point = kf.get_x();
             pos_lid = state_point.pos + state_point.rot * state_point.offset_T_L_I;
 
             if (feats_undistort->empty() || (feats_undistort == NULL))
             {
                 ROS_WARN("No point, skip this scan!\n");
+                if (effective_transition_cycle_started)
+                {
+                    kf.finalizeEffectiveTransitionEpoch(
+                        lidar_end_time,
+                        esekfom::kEffectiveTransitionAuditedReferenceFrame,
+                        esekfom::kEffectiveTransitionAuditedStatePoseFrame);
+                }
                 continue;
             }
 
@@ -918,6 +937,13 @@ int main(int argc, char** argv)
                     }
                     ikdtree.Build(feats_down_world->points);
                 }
+                if (effective_transition_cycle_started)
+                {
+                    kf.finalizeEffectiveTransitionEpoch(
+                        lidar_end_time,
+                        esekfom::kEffectiveTransitionAuditedReferenceFrame,
+                        esekfom::kEffectiveTransitionAuditedStatePoseFrame);
+                }
                 continue;
             }
             int featsFromMapNum = ikdtree.validnum();
@@ -929,6 +955,13 @@ int main(int argc, char** argv)
             if (feats_down_size < 5)
             {
                 ROS_WARN("No point, skip this scan!\n");
+                if (effective_transition_cycle_started)
+                {
+                    kf.finalizeEffectiveTransitionEpoch(
+                        lidar_end_time,
+                        esekfom::kEffectiveTransitionAuditedReferenceFrame,
+                        esekfom::kEffectiveTransitionAuditedStatePoseFrame);
+                }
                 continue;
             }
             
@@ -965,6 +998,14 @@ int main(int argc, char** argv)
             geoQuat.y = state_point.rot.coeffs()[1];
             geoQuat.z = state_point.rot.coeffs()[2];
             geoQuat.w = state_point.rot.coeffs()[3];
+
+            if (effective_transition_cycle_started)
+            {
+                kf.finalizeEffectiveTransitionEpoch(
+                    lidar_end_time,
+                    esekfom::kEffectiveTransitionAuditedReferenceFrame,
+                    esekfom::kEffectiveTransitionAuditedStatePoseFrame);
+            }
 
             double t_update_end = omp_get_wtime();
 

@@ -36,6 +36,10 @@
 #define ESEKFOM_EKF_HPP
 
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <string>
 #include <vector>
 #include <cstdlib>
 
@@ -43,6 +47,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 #include <Eigen/Sparse>
 
 #include "../mtk/types/vect.hpp"
@@ -50,6 +55,7 @@
 #include "../mtk/types/S2.hpp"
 #include "../mtk/startIdx.hpp"
 #include "../mtk/build_manifold.hpp"
+#include "effective_transition.hpp"
 #include "util.hpp"
 
 //#define USE_sparse
@@ -144,6 +150,176 @@ public:
 		f_x_1 = ref;
 	#endif
 	};
+
+	void setEffectiveTransitionExportEnabled(const bool enabled) {
+		effective_transition_enabled_ = enabled;
+		if (!enabled) {
+			effective_transition_active_ = false;
+			effective_transition_baseline_available_ = false;
+			effective_transition_record_available_ = false;
+			effective_transition_record_.complete_and_current = false;
+			effective_transition_pending_continuity_break_ = false;
+		}
+	}
+
+	bool effectiveTransitionExportEnabled() const {
+		return effective_transition_enabled_;
+	}
+
+	void establishEffectiveTransitionBaseline(
+		const double timestamp, const uint64_t estimator_run_id = 0U,
+		const uint64_t update_sequence = 0U) {
+		if (!effective_transition_enabled_) return;
+		effective_transition_run_id_ = estimator_run_id;
+		effective_transition_last_sequence_ = update_sequence;
+		effective_transition_last_timestamp_ = timestamp;
+		effective_transition_baseline_available_ = true;
+		effective_transition_active_ = false;
+		effective_transition_record_available_ = false;
+		effective_transition_record_.complete_and_current = false;
+		effective_transition_pending_continuity_break_ = false;
+	}
+
+	void beginEffectiveTransitionCycle() {
+		if (!effective_transition_enabled_) return;
+		effective_transition_active_ = true;
+		effective_transition_continuity_valid_ =
+			!effective_transition_pending_continuity_break_;
+		effective_transition_A_pred_.setIdentity();
+		effective_transition_W_pred_.setZero();
+		effective_transition_P_prev_ = P_;
+		effective_transition_C_.setIdentity();
+		effective_transition_G_.setIdentity();
+		effective_transition_Kx_pre_reset_.setZero();
+		effective_transition_measurement_noise_.setZero();
+		effective_transition_M_.setZero();
+		effective_transition_W_.setZero();
+		effective_transition_saw_state_mutating_iteration_ = false;
+		effective_transition_final_covariance_committed_ = false;
+		effective_transition_measurement_dimension_ = 0U;
+		effective_transition_record_available_ = false;
+		effective_transition_record_.complete_and_current = false;
+	}
+
+	void finalizeEffectiveTransitionEpoch(
+		const double timestamp, const std::string& reference_frame_id,
+		const std::string& state_pose_frame_id) {
+		if (!effective_transition_enabled_ || !effective_transition_active_) return;
+
+		EffectiveTransitionRecord record;
+		record.complete_and_current = true;
+		record.estimator_run_id = effective_transition_run_id_;
+		record.reference_frame_id = reference_frame_id;
+		record.state_pose_frame_id = state_pose_frame_id;
+		record.measurement_dimension =
+			effective_transition_measurement_dimension_;
+		fillEffectiveTransitionState(&record);
+
+		const bool partial_invalid =
+			effective_transition_saw_state_mutating_iteration_ &&
+			!effective_transition_final_covariance_committed_;
+		if (!effective_transition_baseline_available_) {
+			if (partial_invalid) {
+				record.status =
+					EffectiveTransitionStatus::PARTIAL_INVALID_UPDATE;
+				effective_transition_record_ = record;
+				effective_transition_record_available_ = true;
+				++effective_transition_run_id_;
+			} else {
+				effective_transition_last_timestamp_ = timestamp;
+				effective_transition_last_sequence_ = 0U;
+				effective_transition_baseline_available_ = true;
+			}
+			effective_transition_active_ = false;
+			effective_transition_pending_continuity_break_ = false;
+			return;
+		}
+
+		record.from_update_sequence = effective_transition_last_sequence_;
+		record.to_update_sequence = effective_transition_last_sequence_ + 1U;
+		record.from_timestamp = effective_transition_last_timestamp_;
+		record.to_timestamp = timestamp;
+		fillEffectiveTransitionMatrix(P_, &record.P_current_row_major);
+
+		if (!effective_transition_continuity_valid_ ||
+			!std::isfinite(timestamp) ||
+			timestamp <= effective_transition_last_timestamp_) {
+			record.status = EffectiveTransitionStatus::CONTINUITY_BROKEN;
+			effective_transition_baseline_available_ = false;
+			++effective_transition_run_id_;
+		} else if (partial_invalid) {
+			record.status =
+				EffectiveTransitionStatus::PARTIAL_INVALID_UPDATE;
+			effective_transition_baseline_available_ = false;
+			++effective_transition_run_id_;
+		} else {
+			const cov* transition = &effective_transition_A_pred_;
+			const cov* noise = &effective_transition_W_pred_;
+			record.update_kind = EffectiveTransitionKind::PREDICTION_ONLY;
+			if (effective_transition_final_covariance_committed_) {
+				transition = &effective_transition_M_;
+				noise = &effective_transition_W_;
+				record.update_kind = EffectiveTransitionKind::LIDAR_CORRECTED;
+			}
+
+			fillEffectiveTransitionMatrix(*transition, &record.M_row_major);
+			fillEffectiveTransitionMatrix(*noise, &record.W_row_major);
+			if (!transition->allFinite() || !noise->allFinite() ||
+				!P_.allFinite() || n != 23) {
+				record.status = EffectiveTransitionStatus::NONFINITE;
+				effective_transition_baseline_available_ = false;
+				++effective_transition_run_id_;
+			} else {
+				record.valid = true;
+				record.status = EffectiveTransitionStatus::VALID;
+				populateEffectiveTransitionDiagnostics(
+					*transition, *noise, &record.diagnostics);
+				effective_transition_last_timestamp_ = timestamp;
+				++effective_transition_last_sequence_;
+			}
+		}
+
+		effective_transition_record_ = record;
+		effective_transition_record_available_ = true;
+		effective_transition_active_ = false;
+		effective_transition_pending_continuity_break_ = false;
+	}
+
+	bool hasEffectiveTransitionRecord() const {
+		return effective_transition_record_available_ &&
+			effective_transition_record_.complete_and_current;
+	}
+
+	const EffectiveTransitionRecord& latestEffectiveTransitionRecord() const {
+		return effective_transition_record_;
+	}
+
+	void clearEffectiveTransitionRecord() {
+		effective_transition_record_available_ = false;
+		effective_transition_record_.complete_and_current = false;
+	}
+
+	const cov& effectivePredictionTransition() const {
+		return effective_transition_A_pred_;
+	}
+	const cov& effectivePredictionNoise() const {
+		return effective_transition_W_pred_;
+	}
+	const cov& effectiveFinalIterationTransport() const {
+		return effective_transition_C_;
+	}
+	const cov& effectiveFinalReset() const {
+		return effective_transition_G_;
+	}
+	const cov& effectiveKxPreReset() const {
+		return effective_transition_Kx_pre_reset_;
+	}
+	const cov& effectiveMeasurementNoise() const {
+		return effective_transition_measurement_noise_;
+	}
+	bool effectiveFinalCovarianceCommitted() const {
+		return effective_transition_final_covariance_committed_;
+	}
 
 	//receive system-specific models and their differentions.
 	//for measurement as a manifold.
@@ -379,6 +555,23 @@ public:
 	#else
 		F_x1 += f_x_final * dt;
 		P_ = (F_x1) * P_ * (F_x1).transpose() + (dt * f_w_final) * Q * (dt * f_w_final).transpose();
+		if (effective_transition_enabled_) {
+			if (!effective_transition_active_ &&
+				effective_transition_baseline_available_) {
+				effective_transition_pending_continuity_break_ = true;
+			} else if (effective_transition_active_) {
+				const cov phi = F_x1;
+				const Matrix<scalar_type, n, process_noise_dof>
+					noise_jacobian = dt * f_w_final;
+				const cov step_noise =
+					noise_jacobian * Q * noise_jacobian.transpose();
+				const cov previous_A = effective_transition_A_pred_;
+				const cov previous_W = effective_transition_W_pred_;
+				effective_transition_A_pred_ = phi * previous_A;
+				effective_transition_W_pred_ =
+					phi * previous_W * phi.transpose() + step_noise;
+			}
+		}
 	#endif
 	}
 
@@ -1655,6 +1848,13 @@ public:
 			
 			
 			P_ = P_propagated;
+			cov iteration_C;
+			cov iteration_measurement_noise;
+			if (effective_transition_enabled_ &&
+				effective_transition_active_) {
+				iteration_C.setIdentity();
+				iteration_measurement_noise.setZero();
+			}
 			
 			Matrix<scalar_type, 3, 3> res_temp_SO3;
 			MTK::vect<3, scalar_type> seg_SO3;
@@ -1666,6 +1866,11 @@ public:
 				}
 
 				res_temp_SO3 = MTK::A_matrix(seg_SO3).transpose();
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					iteration_C.template block<3, 3>(idx, idx) =
+						res_temp_SO3;
+				}
 				dx_new.template block<3, 1>(idx, 0) = res_temp_SO3 * dx_new.template block<3, 1>(idx, 0);
 				for(int i = 0; i < n; i++){
 					P_. template block<3, 1>(idx, i) = res_temp_SO3 * (P_. template block<3, 1>(idx, i));	
@@ -1689,6 +1894,11 @@ public:
 				x_.S2_Nx_yy(Nx, idx);
 				x_propagated.S2_Mx(Mx, seg_S2, idx);
 				res_temp_S2 = Nx * Mx; 
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					iteration_C.template block<2, 2>(idx, idx) =
+						res_temp_S2;
+				}
 				dx_new.template block<2, 1>(idx, 0) = res_temp_S2 * dx_new.template block<2, 1>(idx, 0);
 				for(int i = 0; i < n; i++){
 					P_. template block<2, 1>(idx, i) = res_temp_S2 * (P_. template block<2, 1>(idx, i));	
@@ -1738,6 +1948,11 @@ public:
 				Matrix<scalar_type, Eigen::Dynamic, Eigen::Dynamic> K_ = P_ * h_x_cur.transpose() * (h_x_cur * P_ * h_x_cur.transpose()/R + Eigen::Matrix<double, Dynamic, Dynamic>::Identity(dof_Measurement, dof_Measurement)).inverse()/R;
 				K_h = K_ * dyn_share.h;
 				K_x = K_ * h_x_cur;
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					iteration_measurement_noise =
+						R * K_ * K_.transpose();
+				}
 			//#else
 			//	K_= P_ * h_x.transpose() * (h_x * P_ * h_x.transpose() + h_v * R * h_v.transpose()).inverse();
 			//#endif
@@ -1807,14 +2022,35 @@ public:
 				//HTH_cur. template block<12, 12>(0, 0) = HTH;
 				K_x.setZero(); // = cov::Zero();
 				K_x. template block<n, 12>(0, 0) = P_inv. template block<n, 12>(0, 0) * HTH;
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					const Matrix<scalar_type, n, 12> U =
+						P_inv.template block<n, 12>(0, 0);
+					iteration_measurement_noise =
+						R * U * HTH * U.transpose();
+				}
 				//K_= (h_x_.transpose() * h_x_ + (P_/R).inverse()).inverse()*h_x_.transpose();
 			#endif 
+			}
+			if (effective_transition_enabled_ &&
+				effective_transition_active_) {
+				effective_transition_C_ = iteration_C;
+				effective_transition_Kx_pre_reset_ = K_x;
+				effective_transition_measurement_noise_ =
+					iteration_measurement_noise;
+				effective_transition_measurement_dimension_ =
+					static_cast<uint32_t>(dof_Measurement);
 			}
 
 			//K_x = K_ * h_x_;
 			Matrix<scalar_type, n, 1> dx_ = K_h + (K_x - Matrix<scalar_type, n, n>::Identity()) * dx_new; 
 			state x_before = x_;
 			x_.boxplus(dx_);
+			if (effective_transition_enabled_ &&
+				effective_transition_active_ &&
+				dx_.cwiseAbs().maxCoeff() > scalar_type(0)) {
+				effective_transition_saw_state_mutating_iteration_ = true;
+			}
 			dyn_share.converge = true;
 			for(int i = 0; i < n ; i++)
 			{
@@ -1834,6 +2070,11 @@ public:
 			if(t > 1 || i == maximum_iter - 1)
 			{
 				L_ = P_;
+				cov final_G;
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					final_G.setIdentity();
+				}
 				//std::cout << "iteration time" << t << "," << i << std::endl; 
 				Matrix<scalar_type, 3, 3> res_temp_SO3;
 				MTK::vect<3, scalar_type> seg_SO3;
@@ -1843,6 +2084,11 @@ public:
 						seg_SO3(i) = dx_(i + idx);
 					}
 					res_temp_SO3 = MTK::A_matrix(seg_SO3).transpose();
+					if (effective_transition_enabled_ &&
+						effective_transition_active_) {
+						final_G.template block<3, 3>(idx, idx) =
+							res_temp_SO3;
+					}
 					for(int i = 0; i < n; i++){
 						L_. template block<3, 1>(idx, i) = res_temp_SO3 * (P_. template block<3, 1>(idx, i)); 
 					}
@@ -1876,8 +2122,15 @@ public:
 					Eigen::Matrix<scalar_type, 2, 3> Nx;
 					Eigen::Matrix<scalar_type, 3, 2> Mx;
 					x_.S2_Nx_yy(Nx, idx);
-					x_propagated.S2_Mx(Mx, seg_S2, idx);
+					// This reset base is validated only for the active FAST-LIO
+					// update path, whose correction is applied to x_before.
+					x_before.S2_Mx(Mx, seg_S2, idx);
 					res_temp_S2 = Nx * Mx; 
+					if (effective_transition_enabled_ &&
+						effective_transition_active_) {
+						final_G.template block<2, 2>(idx, idx) =
+							res_temp_S2;
+					}
 					for(int i = 0; i < n; i++){
 						L_. template block<2, 1>(idx, i) = res_temp_S2 * (P_. template block<2, 1>(idx, i)); 
 					}
@@ -1923,6 +2176,21 @@ public:
 				//{
 					P_ = L_ - K_x.template block<n, 12>(0, 0) * P_.template block<12, n>(0, 0);
 				//}
+				if (effective_transition_enabled_ &&
+					effective_transition_active_) {
+					const cov B = cov::Identity() -
+						effective_transition_Kx_pre_reset_;
+					const cov BC = B * effective_transition_C_;
+					effective_transition_G_ = final_G;
+					effective_transition_M_ =
+						final_G * BC * effective_transition_A_pred_;
+					effective_transition_W_ =
+						final_G *
+						(BC * effective_transition_W_pred_ * BC.transpose() +
+						 effective_transition_measurement_noise_) *
+						final_G.transpose();
+					effective_transition_final_covariance_committed_ = true;
+				}
 				solve_time += omp_get_wtime() - solve_start;
 				return;
 			}
@@ -1932,6 +2200,7 @@ public:
 
 	void change_x(state &input_state)
 	{
+		noteEffectiveTransitionDiscontinuity();
 		x_ = input_state;
 		if((!x_.vect_state.size())&&(!x_.SO3_state.size())&&(!x_.S2_state.size()))
 		{
@@ -1943,6 +2212,7 @@ public:
 
 	void change_P(cov &input_cov)
 	{
+		noteEffectiveTransitionDiscontinuity();
 		P_ = input_cov;
 	}
 
@@ -1953,6 +2223,81 @@ public:
 		return P_;
 	}
 private:
+	void noteEffectiveTransitionDiscontinuity() {
+		if (!effective_transition_enabled_) return;
+		if (effective_transition_baseline_available_ ||
+			effective_transition_active_) {
+			effective_transition_pending_continuity_break_ = true;
+			effective_transition_continuity_valid_ = false;
+		}
+	}
+
+	void fillEffectiveTransitionMatrix(
+		const cov& matrix,
+		std::array<double, kEffectiveTransitionMatrixSize>* output) const {
+		if (output == nullptr || n != 23) return;
+		for (int row = 0; row < n; ++row) {
+			for (int column = 0; column < n; ++column) {
+				(*output)[static_cast<std::size_t>(row * n + column)] =
+					static_cast<double>(matrix(row, column));
+			}
+		}
+	}
+
+	void fillEffectiveTransitionState(EffectiveTransitionRecord* record) const {
+		if (record == nullptr || n != 23) return;
+		for (int index = 0; index < 3; ++index) {
+			record->current_position[static_cast<std::size_t>(index)] =
+				static_cast<double>(x_.pos(index));
+		}
+		for (int index = 0; index < 4; ++index) {
+			record->current_orientation_xyzw[static_cast<std::size_t>(index)] =
+				static_cast<double>(x_.rot.coeffs()[index]);
+		}
+	}
+
+	static double effectiveTransitionSymmetryError(const cov& matrix) {
+		return (matrix - matrix.transpose()).cwiseAbs().maxCoeff();
+	}
+
+	void populateEffectiveTransitionDiagnostics(
+		const cov& transition, const cov& noise,
+		EffectiveTransitionDiagnostics* diagnostics) const {
+		if (diagnostics == nullptr) return;
+		const cov reconstructed =
+			transition * effective_transition_P_prev_ * transition.transpose() +
+			noise;
+		const cov reconstruction_error = P_ - reconstructed;
+		const double source_norm = P_.norm();
+
+		diagnostics->max_abs_reconstruction_error =
+			reconstruction_error.cwiseAbs().maxCoeff();
+		diagnostics->frobenius_reconstruction_error =
+			reconstruction_error.norm();
+		diagnostics->relative_frobenius_error =
+			reconstruction_error.norm() /
+			std::max(source_norm, std::numeric_limits<double>::min());
+		diagnostics->W_symmetry_error =
+			effectiveTransitionSymmetryError(noise);
+		diagnostics->P_symmetry_error =
+			effectiveTransitionSymmetryError(P_);
+
+		const cov noise_symmetric =
+			scalar_type(0.5) * (noise + noise.transpose());
+		const cov covariance_symmetric =
+			scalar_type(0.5) * (P_ + P_.transpose());
+		SelfAdjointEigenSolver<cov> noise_solver(noise_symmetric);
+		SelfAdjointEigenSolver<cov> covariance_solver(covariance_symmetric);
+		if (noise_solver.info() == Success) {
+			diagnostics->min_W_sym_eigenvalue =
+				static_cast<double>(noise_solver.eigenvalues().minCoeff());
+		}
+		if (covariance_solver.info() == Success) {
+			diagnostics->min_P_sym_eigenvalue =
+				static_cast<double>(covariance_solver.eigenvalues().minCoeff());
+		}
+	}
+
 	state x_;
 	measurement m_;
 	cov P_;
@@ -1962,6 +2307,29 @@ private:
 	cov F_x1 = cov::Identity();
 	cov F_x2 = cov::Identity();
 	cov L_ = cov::Identity();
+	bool effective_transition_enabled_ = false;
+	bool effective_transition_active_ = false;
+	bool effective_transition_baseline_available_ = false;
+	bool effective_transition_record_available_ = false;
+	bool effective_transition_pending_continuity_break_ = false;
+	bool effective_transition_continuity_valid_ = true;
+	bool effective_transition_saw_state_mutating_iteration_ = false;
+	bool effective_transition_final_covariance_committed_ = false;
+	uint32_t effective_transition_measurement_dimension_ = 0U;
+	uint64_t effective_transition_run_id_ = 0U;
+	uint64_t effective_transition_last_sequence_ = 0U;
+	double effective_transition_last_timestamp_ =
+		std::numeric_limits<double>::quiet_NaN();
+	cov effective_transition_A_pred_ = cov::Identity();
+	cov effective_transition_W_pred_ = cov::Zero();
+	cov effective_transition_P_prev_ = cov::Zero();
+	cov effective_transition_C_ = cov::Identity();
+	cov effective_transition_G_ = cov::Identity();
+	cov effective_transition_Kx_pre_reset_ = cov::Zero();
+	cov effective_transition_measurement_noise_ = cov::Zero();
+	cov effective_transition_M_ = cov::Zero();
+	cov effective_transition_W_ = cov::Zero();
+	EffectiveTransitionRecord effective_transition_record_;
 
 	processModel *f;
 	processMatrix1 *f_x;

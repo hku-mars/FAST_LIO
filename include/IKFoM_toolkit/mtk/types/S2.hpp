@@ -274,7 +274,9 @@ public:
 		else{
 			vect_type Bu = Bx*delta;
 			SO3_type exp_delta;
-			exp_delta.w() = MTK::exp<scalar, 3>(exp_delta.vec(), Bu, scalar(1/2));
+			// The floating half avoids integer division before scalar conversion
+			// and keeps this rotation consistent with the S2 boxplus definition.
+			exp_delta.w() = MTK::exp<scalar, 3>(exp_delta.vec(), Bu, scalar(0.5));
 			res = -exp_delta.toRotationMatrix()*MTK::hat(vec)*MTK::A_matrix(Bu).transpose()*Bx;
 		}
 	}
