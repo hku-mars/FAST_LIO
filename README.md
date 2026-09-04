@@ -149,6 +149,7 @@ Clone the repository and catkin_make:
 - If you want to use a custom build of PCL, add the following line to ~/.bashrc
 ```export PCL_ROOT={CUSTOM_PCL_PATH}```
 ## 3. Directly run
+
 Noted:
 
 A. Please make sure the IMU and LiDAR are **Synchronized**, that's important.
@@ -156,6 +157,15 @@ A. Please make sure the IMU and LiDAR are **Synchronized**, that's important.
 B. The warning message "Failed to find match for field 'time'." means the timestamps of each LiDAR points are missed in the rosbag file. That is important for the forward propagation and backwark propagation.
 
 C. We recommend to set the **extrinsic_est_en** to false if the extrinsic is give. As for the extrinsic initiallization, please refer to our recent work: [**Robust Real-time LiDAR-inertial Initialization**](https://github.com/hku-mars/LiDAR_IMU_Init).
+
+D. If you observe inconsistent results (e.g., ATE) on 12th-generation or newer Intel processors with a hybrid P-core/E-core architecture, try pinning the process to either the performance cores (P-cores) or the efficiency cores (E-cores):
+
+```bash
+# Run the process on P-cores
+taskset -c "$(cat /sys/bus/event_source/devices/cpu_core/cpus)" roslaunch ...
+# Run the process on E-cores
+taskset -c "$(cat /sys/bus/event_source/devices/cpu_atom/cpus)" roslaunch ...
+```
 
 ### 3.1 For Avia
 Connect to your PC to Livox Avia LiDAR by following  [Livox-ros-driver installation](https://github.com/Livox-SDK/livox_ros_driver), then
