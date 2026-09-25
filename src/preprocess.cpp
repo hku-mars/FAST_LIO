@@ -2,6 +2,8 @@
 
 #include <pcl/common/common.h>
 
+#include <cmath>
+
 #define RETURN0 0x00
 #define RETURN0AND1 0x10
 
@@ -213,6 +215,10 @@ void Preprocess::oust64_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &
 
     for (uint i = 0; i < plsize; i++)
     {
+      // A no-return beam is a NaN point; `range < blind*blind` below is false for NaN and would
+      // keep it. NaN in the scan poisons pcl::VoxelGrid's bounding box on aarch64 (NEON pmin/pmax).
+      if (!std::isfinite(pl_orig.points[i].x) || !std::isfinite(pl_orig.points[i].y) || !std::isfinite(pl_orig.points[i].z))
+        continue;
       double range = pl_orig.points[i].x * pl_orig.points[i].x + pl_orig.points[i].y * pl_orig.points[i].y +
                      pl_orig.points[i].z * pl_orig.points[i].z;
       if (range < (blind * blind))
@@ -269,6 +275,10 @@ void Preprocess::oust64_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &
       if (i % point_filter_num != 0)
         continue;
 
+      // A no-return beam is a NaN point; `range < blind*blind` below is false for NaN and would
+      // keep it. NaN in the scan poisons pcl::VoxelGrid's bounding box on aarch64 (NEON pmin/pmax).
+      if (!std::isfinite(pl_orig.points[i].x) || !std::isfinite(pl_orig.points[i].y) || !std::isfinite(pl_orig.points[i].z))
+        continue;
       double range = pl_orig.points[i].x * pl_orig.points[i].x + pl_orig.points[i].y * pl_orig.points[i].y +
                      pl_orig.points[i].z * pl_orig.points[i].z;
 
