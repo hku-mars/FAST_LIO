@@ -7,6 +7,7 @@
 #include <csignal>
 #include <so3_math.h>
 #include <Eigen/Eigen>
+#include <Eigen/Geometry>
 #include <common_lib.h>
 #include <pcl/common/io.h>
 #include <pcl/point_cloud.h>
@@ -189,14 +190,56 @@ void ImuProcess::IMU_init(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 
 
     N ++;
   }
-  state_ikfom init_state = kf_state.get_x();
-  init_state.grav = S2(- mean_acc / mean_acc.norm() * G_m_s2);
+  // state_ikfom init_state = kf_state.get_x();
+  // init_state.grav = S2(- mean_acc / mean_acc.norm() * G_m_s2);
   
-  //state_inout.rot = Eye3d; // Exp(mean_acc.cross(V3D(0, 0, -1 / scale_gravity)));
-  init_state.bg  = mean_gyr;
+  // //state_inout.rot = Eye3d; // Exp(mean_acc.cross(V3D(0, 0, -1 / scale_gravity)));
+  // init_state.bg  = mean_gyr;
+  // init_state.offset_T_L_I = Lidar_T_wrt_IMU;
+  // init_state.offset_R_L_I = Lidar_R_wrt_IMU;
+  // kf_state.change_x(init_state);
+
+
+  state_ikfom init_state = kf_state.get_x();
+
+  // Align the stationary accelerometer direction with world +Z.
+  // Assumes the IMU reports specific force pointing upward at rest.
+  const double acc_norm = mean_acc.norm();
+
+  if (acc_norm > 1e-6)
+  {
+      const V3D acc_dir = mean_acc / acc_norm;
+      const V3D world_up(0.0, 0.0, 1.0);
+
+      // Rotation from IMU/body coordinates into the gravity-aligned world.
+      const Eigen::Quaterniond q_align =
+          Eigen::Quaterniond::FromTwoVectors(
+              Eigen::Vector3d(acc_dir[0], acc_dir[1], acc_dir[2]),
+              Eigen::Vector3d(world_up[0], world_up[1], world_up[2]));
+
+      init_state.rot = SO3(q_align.toRotationMatrix());
+
+      // Express gravity in the aligned world frame.
+      init_state.grav = S2(V3D(0.0, 0.0, -G_m_s2));
+
+      RCLCPP_INFO(
+          rclcpp::get_logger("fast_lio"),
+          "Gravity-aligned initialization: mean_acc = [%.4f, %.4f, %.4f], norm = %.4f",
+          mean_acc[0], mean_acc[1], mean_acc[2], acc_norm);
+  }
+  else
+  {
+      RCLCPP_ERROR(
+          rclcpp::get_logger("fast_lio"),
+          "Invalid mean accelerometer norm; cannot align gravity.");
+  }
+
+  init_state.bg = mean_gyr;
   init_state.offset_T_L_I = Lidar_T_wrt_IMU;
   init_state.offset_R_L_I = Lidar_R_wrt_IMU;
+
   kf_state.change_x(init_state);
+
 
   esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = kf_state.get_P();
   init_P.setIdentity();
