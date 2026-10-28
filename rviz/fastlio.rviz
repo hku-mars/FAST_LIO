@@ -36,7 +36,7 @@ Visualization Manager:
         All Enabled: true
         body:
           Value: true
-        camera_init:
+        odom:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -44,7 +44,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        camera_init:
+        odom:
           body:
             {}
       Update Interval: 0
@@ -221,7 +221,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
-    Fixed Frame: camera_init
+    Fixed Frame: odom
     Frame Rate: 30
   Name: root
   Tools:

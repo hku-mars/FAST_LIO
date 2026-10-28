@@ -294,7 +294,7 @@ Visualization Manager:
   Global Options:
     Background Color: 0; 0; 0
     Default Light: true
-    Fixed Frame: camera_init
+    Fixed Frame: odom
     Frame Rate: 10
   Name: root
   Tools:
